@@ -130,4 +130,3 @@ python -m pytest -q
 | `DB_PATH`    | SQLite 文件路径              | `weights.db`    |
 | `LOG_PATH`   | 日志文件路径                 | `logs/app.log`  |
 | `MA_WINDOWS` | 移动平均窗口(逗号分隔, 天)   | `3,7`           |
-```
