@@ -57,6 +57,18 @@ body {
     margin-bottom: 20px;
 }
 
+/* 录入提示 */
+.tip {
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    background: #eef2ff;
+    border-left: 3px solid var(--primary);
+    border-radius: 8px;
+    color: #4338ca;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
 /* 表单 */
 .form {
     display: grid;
@@ -217,16 +229,68 @@ tbody tr:hover {
     background: #fafbff;
 }
 
-.btn-del {
-    background: none;
-    border: none;
-    color: var(--danger);
-    cursor: pointer;
-    font-size: 13px;
+/* 操作列图标按钮 */
+.action-cell {
+    display: flex;
+    gap: 6px;
+    align-items: center;
 }
 
-.btn-del:hover {
-    text-decoration: underline;
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.icon-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.icon-btn:hover {
+    background: #f1f4ff;
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.icon-btn.btn-del:hover {
+    background: #fef2f2;
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.icon-btn.btn-save:hover {
+    background: #ecfdf5;
+    color: var(--ma7);
+    border-color: var(--ma7);
+}
+
+/* 内联编辑输入框 */
+.edit-input {
+    width: 100%;
+    min-width: 80px;
+    padding: 6px 8px;
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.edit-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(79, 109, 245, 0.15);
+}
+
+tr.editing {
+    background: #f8faff;
 }
 
 .empty-tip {
@@ -236,12 +300,16 @@ tbody tr:hover {
     font-size: 14px;
 }
 
-.table-toggle-wrap {
-    text-align: center;
-    margin-top: 14px;
+/* 分页控件 */
+.pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
 }
 
-.btn-toggle {
+.btn-page {
     background: #f1f4ff;
     color: var(--primary);
     border: 1px solid var(--border);
@@ -253,8 +321,20 @@ tbody tr:hover {
     transition: background 0.15s;
 }
 
-.btn-toggle:hover {
+.btn-page:hover:not(:disabled) {
     background: #e7ecff;
+}
+
+.btn-page:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-info {
+    font-size: 13px;
+    color: var(--muted);
+    min-width: 90px;
+    text-align: center;
 }
 
 @media (max-width: 600px) {

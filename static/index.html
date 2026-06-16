@@ -14,6 +14,7 @@
         </header>
 
         <section class="card form-card">
+            <p class="tip">💡 建议每日早上起床后空腹称重，最好是上厕所后。</p>
             <form id="record-form" class="form">
                 <div class="field">
                     <label for="date">日期</label>
@@ -59,8 +60,10 @@
                 </table>
             </div>
             <p id="empty-tip" class="empty-tip" hidden>暂无记录, 快来记录第一笔吧~</p>
-            <div class="table-toggle-wrap">
-                <button id="table-toggle" class="btn-toggle" hidden></button>
+            <div class="pager" id="pager" hidden>
+                <button id="page-prev" class="btn-page" type="button">上一页</button>
+                <span id="page-info" class="page-info"></span>
+                <button id="page-next" class="btn-page" type="button">下一页</button>
             </div>
         </section>
     </main>

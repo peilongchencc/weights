@@ -2,13 +2,26 @@
 
 const API = "/api/records";
 
-// 表格默认预览条数, 超出后折叠并提供"展开全部"
-const TABLE_PREVIEW = 30;
-let tableExpanded = false;
-// 缓存最近一次拉取的记录, 供表格展开/收起复用, 避免重复请求
+// 每页最多展示的记录条数
+const PAGE_SIZE = 30;
+// 当前页码(从 1 开始); 记录按日期倒序, 故第 1 页为最新数据
+let currentPage = 1;
+// 正在内联编辑的记录日期; null 表示无编辑中行
+let editingDate = null;
+// 缓存最近一次拉取的记录, 供分页/编辑复用, 避免重复请求
 let lastRecords = [];
 // 当前后端所用的移动平均窗口(由接口返回, 决定前端动态渲染列数与曲线数)
 let currentWindows = [];
+
+// 操作列图标(内联 SVG, 16x16, 继承 currentColor)
+const ICON_EDIT =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const ICON_DELETE =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
+const ICON_SAVE =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+const ICON_CANCEL =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>';
 
 // 体重原始曲线颜色
 const WEIGHT_COLOR = "#4f6df5";
@@ -85,58 +98,110 @@ function renderStats(records) {
         `<span class="stat-value" style="color:${diffColor}">${diffText}</span></div>`;
 }
 
-/** 渲染历史记录表格(表头随窗口动态生成)。 */
+/** 渲染历史记录表格(表头随窗口动态生成, 支持分页与内联编辑)。 */
 function renderTable(records) {
     const head = document.getElementById("record-head");
     const body = document.getElementById("record-body");
     const emptyTip = document.getElementById("empty-tip");
-    const toggle = document.getElementById("table-toggle");
+    const pager = document.getElementById("pager");
 
     // 表头: 日期 / 体重 / 各窗口均值 / 备注 / 操作
     head.innerHTML =
         `<th>日期</th><th>体重 (kg)</th>` +
         currentWindows.map((w) => `<th>${w} 日均值</th>`).join("") +
-        `<th>备注</th><th></th>`;
+        `<th>备注</th><th>操作</th>`;
 
     body.innerHTML = "";
     if (records.length === 0) {
         emptyTip.hidden = false;
-        toggle.hidden = true;
+        pager.hidden = true;
         return;
     }
     emptyTip.hidden = true;
 
-    // 倒序(最新在上); 未展开时仅取最近 TABLE_PREVIEW 条
+    // 倒序(最新在上)
     const ordered = [...records].reverse();
-    const visible = tableExpanded ? ordered : ordered.slice(0, TABLE_PREVIEW);
+    const totalPages = Math.ceil(ordered.length / PAGE_SIZE);
+    // 越界保护(如删除后当前页已无数据)
+    currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const visible = ordered.slice(start, start + PAGE_SIZE);
 
     visible.forEach((r) => {
         const tr = document.createElement("tr");
         const maCells = currentWindows
             .map((w) => `<td>${fmt(r[`ma_${w}`])}</td>`)
             .join("");
-        tr.innerHTML = `
-            <td>${r.date}</td>
-            <td>${r.weight.toFixed(2)}</td>
-            ${maCells}
-            <td>${r.note ? escapeHtml(r.note) : ""}</td>
-            <td><button class="btn-del" data-date="${r.date}">删除</button></td>
-        `;
+        if (r.date === editingDate) {
+            tr.className = "editing";
+            tr.innerHTML = `
+                <td>${r.date}</td>
+                <td><input class="edit-input edit-weight" type="number" step="0.01" min="0.1" value="${r.weight}" /></td>
+                ${maCells}
+                <td><input class="edit-input edit-note" type="text" value="${r.note ? escapeHtml(r.note) : ""}" placeholder="备注" /></td>
+                <td>
+                    <div class="action-cell">
+                        <button class="icon-btn btn-save" data-date="${r.date}" title="保存">${ICON_SAVE}</button>
+                        <button class="icon-btn btn-cancel" data-date="${r.date}" title="取消">${ICON_CANCEL}</button>
+                    </div>
+                </td>
+            `;
+        } else {
+            tr.innerHTML = `
+                <td>${r.date}</td>
+                <td>${r.weight.toFixed(2)}</td>
+                ${maCells}
+                <td>${r.note ? escapeHtml(r.note) : ""}</td>
+                <td>
+                    <div class="action-cell">
+                        <button class="icon-btn btn-edit" data-date="${r.date}" title="编辑">${ICON_EDIT}</button>
+                        <button class="icon-btn btn-del" data-date="${r.date}" title="删除">${ICON_DELETE}</button>
+                    </div>
+                </td>
+            `;
+        }
         body.appendChild(tr);
+    });
+
+    bindRowActions(body);
+    renderPager(ordered.length, totalPages);
+}
+
+/** 绑定当前页行内的编辑/删除/保存/取消事件。 */
+function bindRowActions(body) {
+    body.querySelectorAll(".btn-edit").forEach((btn) => {
+        btn.addEventListener("click", () => startEdit(btn.dataset.date));
     });
     body.querySelectorAll(".btn-del").forEach((btn) => {
         btn.addEventListener("click", () => deleteRecord(btn.dataset.date));
     });
+    body.querySelectorAll(".btn-save").forEach((btn) => {
+        btn.addEventListener("click", () => saveEdit(btn.dataset.date));
+    });
+    body.querySelectorAll(".btn-cancel").forEach((btn) => {
+        btn.addEventListener("click", () => cancelEdit());
+    });
+    // 编辑状态下按回车保存, 按 Esc 取消
+    body.querySelectorAll(".edit-input").forEach((input) => {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") saveEdit(editingDate);
+            else if (e.key === "Escape") cancelEdit();
+        });
+    });
+}
 
-    // 超出预览条数才显示展开/收起按钮
-    if (ordered.length > TABLE_PREVIEW) {
-        toggle.hidden = false;
-        toggle.textContent = tableExpanded
-            ? "收起"
-            : `展开全部 (共 ${ordered.length} 条)`;
-    } else {
-        toggle.hidden = true;
-    }
+/** 渲染分页控件(仅一页时仍显示, 便于查看总条数)。 */
+function renderPager(total, totalPages) {
+    const pager = document.getElementById("pager");
+    const info = document.getElementById("page-info");
+    const prev = document.getElementById("page-prev");
+    const next = document.getElementById("page-next");
+
+    pager.hidden = false;
+    info.textContent = `第 ${currentPage} / ${totalPages} 页 · 共 ${total} 条`;
+    prev.disabled = currentPage <= 1;
+    next.disabled = currentPage >= totalPages;
 }
 
 /** 数值保留两位小数, 缺失时显示占位符。 */
@@ -281,9 +346,53 @@ async function submitRecord(e) {
     if (json.code === 200) {
         showMsg("保存成功 ✓", true);
         document.getElementById("note").value = "";
+        // 新增/更新后回到第 1 页, 便于查看最新记录
+        currentPage = 1;
+        editingDate = null;
         await loadRecords();
     } else {
         showMsg(json.message || "保存失败", false);
+    }
+}
+
+/** 进入某条记录的内联编辑状态。 */
+function startEdit(date) {
+    editingDate = date;
+    renderTable(lastRecords);
+    // 聚焦体重输入框, 便于直接修改
+    const input = document.querySelector("tr.editing .edit-weight");
+    if (input) input.focus();
+}
+
+/** 取消编辑, 恢复只读展示。 */
+function cancelEdit() {
+    editingDate = null;
+    renderTable(lastRecords);
+}
+
+/** 保存内联编辑的体重与备注(复用 upsert 接口, 按日期覆盖)。 */
+async function saveEdit(date) {
+    const row = document.querySelector("tr.editing");
+    if (!row) return;
+    const weight = parseFloat(row.querySelector(".edit-weight").value);
+    const note = row.querySelector(".edit-note").value;
+
+    if (!weight || weight <= 0) {
+        alert("请输入有效的体重");
+        return;
+    }
+
+    const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, weight, note }),
+    });
+    const json = await res.json();
+    if (json.code === 200) {
+        editingDate = null;
+        await loadRecords();
+    } else {
+        alert(json.message || "保存失败");
     }
 }
 
@@ -293,18 +402,29 @@ async function deleteRecord(date) {
     const res = await fetch(`${API}/${date}`, { method: "DELETE" });
     const json = await res.json();
     if (json.code === 200) {
+        // 删除编辑中的行时一并退出编辑态
+        if (editingDate === date) editingDate = null;
         await loadRecords();
     } else {
         alert(json.message || "删除失败");
     }
 }
 
+/** 翻页并重新渲染表格(切页时退出编辑态)。 */
+function goToPage(page) {
+    currentPage = page;
+    editingDate = null;
+    renderTable(lastRecords);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("date").value = todayStr();
     document.getElementById("record-form").addEventListener("submit", submitRecord);
-    document.getElementById("table-toggle").addEventListener("click", () => {
-        tableExpanded = !tableExpanded;
-        renderTable(lastRecords);
+    document.getElementById("page-prev").addEventListener("click", () => {
+        if (currentPage > 1) goToPage(currentPage - 1);
+    });
+    document.getElementById("page-next").addEventListener("click", () => {
+        goToPage(currentPage + 1);
     });
     loadRecords();
 });
