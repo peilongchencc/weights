@@ -139,7 +139,7 @@ function renderTable(records) {
                 <td>${r.date}</td>
                 <td><input class="edit-input edit-weight" type="number" step="0.01" min="0.1" value="${r.weight}" /></td>
                 ${maCells}
-                <td><input class="edit-input edit-note" type="text" value="${r.note ? escapeHtml(r.note) : ""}" placeholder="备注" /></td>
+                <td><input class="edit-input edit-note" type="text" maxlength="500" value="${escapeAttr(r.note)}" placeholder="备注" /></td>
                 <td>
                     <div class="action-cell">
                         <button class="icon-btn btn-save" data-date="${r.date}" title="保存">${ICON_SAVE}</button>
@@ -148,11 +148,12 @@ function renderTable(records) {
                 </td>
             `;
         } else {
+            const noteText = r.note ? escapeHtml(r.note) : "";
             tr.innerHTML = `
                 <td>${r.date}</td>
                 <td>${r.weight.toFixed(2)}</td>
                 ${maCells}
-                <td>${r.note ? escapeHtml(r.note) : ""}</td>
+                <td class="note-cell" title="${escapeAttr(r.note)}">${noteText}</td>
                 <td>
                     <div class="action-cell">
                         <button class="icon-btn btn-edit" data-date="${r.date}" title="编辑">${ICON_EDIT}</button>
@@ -216,6 +217,12 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+/** 属性值转义, 在 escapeHtml 基础上额外转义引号, 供 title 等属性安全使用。 */
+function escapeAttr(str) {
+    if (!str) return "";
+    return escapeHtml(str).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 /** 渲染图例(体重 + 各窗口均值)。 */
 function renderLegend() {
     const legend = document.getElementById("chart-legend");
@@ -273,13 +280,40 @@ function renderChart(records) {
     };
 
     const dots = records
+        .map((r, i) => `<circle cx="${x(i)}" cy="${y(r.weight)}" r="3" fill="${WEIGHT_COLOR}" />`)
+        .join("");
+
+    // 各曲线序列(体重 + 各窗口均值), 用于高亮点与提示内容
+    const series = [
+        { key: "weight", color: WEIGHT_COLOR },
+        ...currentWindows.map((w, i) => ({ key: `ma_${w}`, color: maColor(i) })),
+    ];
+
+    // 悬停高亮点(初始隐藏, 交互时按当前数据点更新位置)
+    const activeDots = series
         .map(
-            (r, i) =>
-                `<circle cx="${x(i)}" cy="${y(r.weight)}" r="3" fill="${WEIGHT_COLOR}">
-                    <title>${r.date}: ${r.weight.toFixed(2)}kg</title>
-                </circle>`
+            (s) =>
+                `<circle class="active-dot" data-key="${s.key}" r="5" fill="${s.color}"` +
+                ` stroke="#fff" stroke-width="2" visibility="hidden" />`
         )
         .join("");
+
+    // 透明的整列命中区(覆盖全高), 扩大悬停/点击的可触发范围
+    const hits = records
+        .map((r, i) => {
+            const left = i === 0 ? pad.left : (x(i - 1) + x(i)) / 2;
+            const right = i === n - 1 ? W - pad.right : (x(i) + x(i + 1)) / 2;
+            return (
+                `<rect class="hit" x="${left}" y="${pad.top}" width="${Math.max(right - left, 1)}"` +
+                ` height="${innerH}" fill="transparent" data-i="${i}" />`
+            );
+        })
+        .join("");
+
+    // 悬停参考线(初始隐藏, 交互时移动到当前列)
+    const guide =
+        `<line class="chart-guide" y1="${pad.top}" y2="${pad.top + innerH}"` +
+        ` stroke="#cbd2e0" stroke-width="1" stroke-dasharray="4 3" visibility="hidden" />`;
 
     // y 轴网格与刻度
     const ticks = 4;
@@ -311,14 +345,92 @@ function renderChart(records) {
     container.innerHTML = `
         <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
             ${grid}
+            ${guide}
             ${maLines}
             ${line("weight", WEIGHT_COLOR)}
             ${dots}
+            ${activeDots}
             ${xlabels}
-        </svg>`;
+            ${hits}
+        </svg>
+        <div class="chart-tooltip" hidden></div>`;
+
+    attachChartInteraction(container, records, x, y, W);
 
     // 数据较多时自动横向滚动到最新一天(最右侧)
     container.scrollLeft = container.scrollWidth;
+}
+
+/** 构造图表悬浮提示的 HTML(日期 + 体重 + 各窗口均值)。 */
+function buildChartTip(r) {
+    const rows = [
+        `<div class="tip-row"><i class="tip-dot" style="background:${WEIGHT_COLOR}"></i>` +
+            `体重 <b>${r.weight.toFixed(2)}</b> kg</div>`,
+    ];
+    currentWindows.forEach((w, i) => {
+        const v = r[`ma_${w}`];
+        const valText = v != null ? `${v.toFixed(2)} kg` : "--";
+        rows.push(
+            `<div class="tip-row"><i class="tip-dot" style="background:${maColor(i)}"></i>` +
+                `${w} 日均值 <b>${valText}</b></div>`
+        );
+    });
+    return `<div class="tip-date">${r.date}</div>${rows.join("")}`;
+}
+
+/** 绑定图表交互: 悬停/点击整列时显示参考线、高亮点与数据浮层。 */
+function attachChartInteraction(container, records, x, y, W) {
+    const svg = container.querySelector("svg");
+    const tip = container.querySelector(".chart-tooltip");
+    const guide = container.querySelector(".chart-guide");
+    const activeDots = container.querySelectorAll(".active-dot");
+    if (!svg || !tip) return;
+
+    const showAt = (i) => {
+        const r = records[i];
+        if (!r) return;
+        tip.innerHTML = buildChartTip(r);
+        tip.hidden = false;
+
+        if (guide) {
+            guide.setAttribute("x1", x(i));
+            guide.setAttribute("x2", x(i));
+            guide.setAttribute("visibility", "visible");
+        }
+        activeDots.forEach((dot) => {
+            const v = r[dot.dataset.key];
+            if (v == null) {
+                dot.setAttribute("visibility", "hidden");
+                return;
+            }
+            dot.setAttribute("cx", x(i));
+            dot.setAttribute("cy", y(v));
+            dot.setAttribute("visibility", "visible");
+        });
+
+        // 定位浮层: 默认在数据点上方居中, 空间不足则翻转到下方, 并做左右夹取
+        const tw = tip.offsetWidth;
+        const th = tip.offsetHeight;
+        let left = x(i) - tw / 2;
+        left = Math.max(4, Math.min(left, W - tw - 4));
+        let top = y(r.weight) - th - 12;
+        if (top < 4) top = y(r.weight) + 14;
+        tip.style.left = `${left}px`;
+        tip.style.top = `${top}px`;
+    };
+
+    const hide = () => {
+        tip.hidden = true;
+        if (guide) guide.setAttribute("visibility", "hidden");
+        activeDots.forEach((dot) => dot.setAttribute("visibility", "hidden"));
+    };
+
+    svg.querySelectorAll(".hit").forEach((rect) => {
+        const i = Number(rect.dataset.i);
+        rect.addEventListener("mouseenter", () => showAt(i));
+        rect.addEventListener("click", () => showAt(i));
+    });
+    svg.addEventListener("mouseleave", hide);
 }
 
 /** 提交体重记录。 */
