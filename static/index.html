@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>每日体重记录</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <main class="container">
+        <header class="header">
+            <h1>每日体重记录</h1>
+            <p class="subtitle">记录体重 · 计算 3 日 / 7 日移动平均</p>
+        </header>
+
+        <section class="card form-card">
+            <form id="record-form" class="form">
+                <div class="field">
+                    <label for="date">日期</label>
+                    <input type="date" id="date" name="date" required />
+                </div>
+                <div class="field">
+                    <label for="weight">体重 (kg) <span class="required">*</span></label>
+                    <input
+                        type="number"
+                        id="weight"
+                        name="weight"
+                        step="0.01"
+                        min="0.1"
+                        placeholder="例如 91.10"
+                        required
+                    />
+                </div>
+                <div class="field field-wide">
+                    <label for="note">备注 (可选)</label>
+                    <input type="text" id="note" name="note" placeholder="例如 晨起空腹" />
+                </div>
+                <button type="submit" class="btn-primary">保存记录</button>
+            </form>
+            <p id="form-msg" class="form-msg"></p>
+        </section>
+
+        <section class="card stats-card" id="stats-card"></section>
+
+        <section class="card chart-card">
+            <h2>趋势图</h2>
+            <div id="chart" class="chart"></div>
+            <div class="legend" id="chart-legend"></div>
+        </section>
+
+        <section class="card table-card">
+            <h2>历史记录</h2>
+            <div class="table-wrap">
+                <table id="record-table">
+                    <thead>
+                        <tr id="record-head"></tr>
+                    </thead>
+                    <tbody id="record-body"></tbody>
+                </table>
+            </div>
+            <p id="empty-tip" class="empty-tip" hidden>暂无记录, 快来记录第一笔吧~</p>
+            <div class="table-toggle-wrap">
+                <button id="table-toggle" class="btn-toggle" hidden></button>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
