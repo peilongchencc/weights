@@ -290,12 +290,14 @@ function renderTable(records) {
                 </td>
             `;
         } else {
-            const noteText = r.note ? escapeHtml(r.note) : "";
+            const noteCell = r.note
+                ? `<td class="note-cell" data-note="${escapeAttr(r.note)}"><span class="note-text">${escapeHtml(r.note)}</span></td>`
+                : `<td class="note-cell"></td>`;
             tr.innerHTML = `
                 <td>${r.date}</td>
                 <td>${r.weight.toFixed(2)}</td>
                 ${maCells}
-                <td class="note-cell" title="${escapeAttr(r.note)}">${noteText}</td>
+                ${noteCell}
                 <td>
                     <div class="action-cell">
                         <button class="icon-btn btn-edit" data-date="${r.date}" title="编辑">${ICON_EDIT}</button>
@@ -690,10 +692,67 @@ function attachHelpToggle() {
     });
 }
 
+/**
+ * 备注浮层交互。
+
+ * 由于表格容器存在 overflow 裁剪, 浮层挂在 body 上并用 fixed 定位,
+ * 避免被表头或滚动容器遮挡; 悬浮即显示, 几乎无延迟。
+ */
+function attachNoteTooltip() {
+    const body = document.getElementById("record-body");
+    if (!body) return;
+
+    const tip = document.createElement("div");
+    tip.id = "note-tooltip";
+    tip.hidden = true;
+    document.body.appendChild(tip);
+
+    const positionTip = (cell) => {
+        const rect = cell.getBoundingClientRect();
+        tip.style.maxWidth = "260px";
+        // 先显示以便测量尺寸
+        tip.hidden = false;
+        const tipRect = tip.getBoundingClientRect();
+        const margin = 8;
+        let left = rect.left;
+        // 右侧越界时向左收回
+        if (left + tipRect.width > window.innerWidth - margin) {
+            left = window.innerWidth - margin - tipRect.width;
+        }
+        if (left < margin) left = margin;
+        // 默认显示在单元格上方, 上方空间不足则放到下方
+        let top = rect.top - tipRect.height - margin;
+        if (top < margin) top = rect.bottom + margin;
+        tip.style.left = `${left}px`;
+        tip.style.top = `${top}px`;
+    };
+
+    body.addEventListener("mouseover", (e) => {
+        const cell = e.target.closest(".note-cell");
+        if (!cell || !body.contains(cell)) return;
+        const note = cell.dataset.note;
+        if (!note) return;
+        // 仅当备注被截断(超过 2 行出现省略号)时才显示浮层
+        const text = cell.querySelector(".note-text");
+        if (!text || text.scrollHeight <= text.clientHeight + 1) return;
+        tip.textContent = note;
+        positionTip(cell);
+    });
+
+    body.addEventListener("mouseout", (e) => {
+        const cell = e.target.closest(".note-cell");
+        if (!cell) return;
+        // 移动到单元格内部子元素时不隐藏
+        if (cell.contains(e.relatedTarget)) return;
+        tip.hidden = true;
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("date").value = todayStr();
     document.getElementById("record-form").addEventListener("submit", submitRecord);
     attachHelpToggle();
+    attachNoteTooltip();
     document.getElementById("page-prev").addEventListener("click", () => {
         if (currentPage > 1) goToPage(currentPage - 1);
     });
