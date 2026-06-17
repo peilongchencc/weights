@@ -55,6 +55,47 @@ function showMsg(text, ok) {
     el.className = "form-msg " + (ok ? "ok" : "err");
 }
 
+/**
+ * 按日期在缓存记录中查找对应记录。
+
+ * Args:
+ *     date: yyyy-mm-dd 格式的日期字符串。
+
+ * Returns:
+ *     object|null: 命中的记录对象, 未找到时返回 null。
+ */
+function findRecordByDate(date) {
+    return lastRecords.find((r) => r.date === date) || null;
+}
+
+/**
+ * 根据所选日期是否已有记录, 更新提交按钮文案与覆盖提示。
+
+ * 已有记录时按钮显示 "更新记录" 并提示再次提交将覆盖, 提醒用户避免误覆盖;
+ * 未记录或切到空白日期时恢复为 "保存记录" 并隐藏提示。
+ */
+function updateFormState() {
+    const dateInput = document.getElementById("date");
+    const submitBtn = document.getElementById("submit-btn");
+    const hint = document.getElementById("date-hint");
+    if (!dateInput || !submitBtn || !hint) return;
+
+    const date = dateInput.value;
+    const existing = date ? findRecordByDate(date) : null;
+    if (existing) {
+        submitBtn.textContent = "更新记录";
+        const weightText = existing.weight.toFixed(2);
+        hint.textContent =
+            date === todayStr()
+                ? `今日已记录体重为: ${weightText} kg，再次提交将覆盖。`
+                : `该日期已记录体重为: ${weightText} kg，再次提交将覆盖。`;
+        hint.hidden = false;
+    } else {
+        submitBtn.textContent = "保存记录";
+        hint.hidden = true;
+    }
+}
+
 /** 拉取记录并刷新页面。 */
 async function loadRecords() {
     const res = await fetch(API);
@@ -65,6 +106,8 @@ async function loadRecords() {
     renderStats(records);
     renderTable(records);
     renderChart(records);
+    // 记录变化后, 同步刷新提交按钮文案与覆盖提示
+    updateFormState();
 }
 
 /**
@@ -760,6 +803,8 @@ function attachNoteTooltip() {
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("date").value = todayStr();
     document.getElementById("record-form").addEventListener("submit", submitRecord);
+    // 切换日期时, 实时反映该日期是否已有记录(按钮文案与覆盖提示)
+    document.getElementById("date").addEventListener("change", updateFormState);
     attachHelpToggle();
     attachNoteTooltip();
     document.getElementById("page-prev").addEventListener("click", () => {
