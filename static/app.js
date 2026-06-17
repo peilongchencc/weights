@@ -71,31 +71,60 @@ function renderStats(records) {
     cells.push({ label: "最新体重", value: latest ? `${latest.weight.toFixed(2)} kg` : "--" });
     currentWindows.forEach((w) => {
         const v = latest ? latest[`ma_${w}`] : null;
-        cells.push({ label: `${w} 日均值`, value: v != null ? `${v.toFixed(2)} kg` : "--" });
+        cells.push({
+            label: `${w} 日均值`,
+            value: v != null ? `${v.toFixed(2)} kg` : "--",
+            help:
+                `最近 ${w} 条记录(含今日)的平均值, 即移动平均。\n` +
+                `与趋势图中对应的均值曲线一致。\n` +
+                `注: 记录不足 ${w} 条时, 按已有的全部记录计算。`,
+        });
     });
 
-    // 差值参照最大(最后一个)窗口
+    // 差值: 今日体重 较 "不含今日的前 N 条记录均值"(N 取最大窗口)
     const maxWindow = currentWindows[currentWindows.length - 1];
     let diffColor = "";
     let diffText = "--";
-    if (latest && maxWindow != null && latest[`ma_${maxWindow}`] != null) {
-        const diff = latest.weight - latest[`ma_${maxWindow}`];
-        const sign = diff > 0 ? "+" : "";
-        diffText = `${sign}${diff.toFixed(2)} kg`;
-        diffColor = diff > 0 ? "var(--danger)" : "var(--ma7)";
+    if (latest && maxWindow != null) {
+        // 取最新记录之前的最多 N 条记录(不含今日); 不足 N 条时按已有前序记录计算
+        const start = Math.max(0, records.length - 1 - maxWindow);
+        const prev = records.slice(start, records.length - 1);
+        if (prev.length > 0) {
+            const base = prev.reduce((sum, r) => sum + r.weight, 0) / prev.length;
+            const diff = latest.weight - base;
+            const sign = diff > 0 ? "+" : "";
+            diffText = `${sign}${diff.toFixed(2)} kg`;
+            diffColor = diff > 0 ? "var(--danger)" : "var(--ma7)";
+        }
     }
-    const diffLabel = maxWindow != null ? `较 ${maxWindow} 日均值` : "较均值";
+    const diffLabel = maxWindow != null ? `较前 ${maxWindow} 日均值` : "较前期均值";
+    const helpText =
+        maxWindow != null
+            ? `今日体重 减去 “不含今日的前 ${maxWindow} 条记录” 的平均值。\n` +
+              `正值(红色)表示高于近期基线, 负值(绿色)表示低于近期基线。\n` +
+              `注: 前序记录不足 ${maxWindow} 条时, 按已有的全部前序记录计算。`
+            : "今日体重相较此前记录均值的变化。";
 
     card.innerHTML =
         cells
             .map(
                 (c) =>
-                    `<div class="stat"><span class="stat-label">${c.label}</span>` +
+                    `<div class="stat"><span class="stat-label">${c.label}${helpMarkup(c.help)}</span>` +
                     `<span class="stat-value">${c.value}</span></div>`
             )
             .join("") +
-        `<div class="stat"><span class="stat-label">${diffLabel}</span>` +
+        `<div class="stat">` +
+        `<span class="stat-label">${diffLabel}${helpMarkup(helpText)}</span>` +
         `<span class="stat-value" style="color:${diffColor}">${diffText}</span></div>`;
+}
+
+/** 生成 "?" 帮助按钮与浮层的 HTML; 无说明文本时返回空串。 */
+function helpMarkup(text) {
+    if (!text) return "";
+    return (
+        `<span class="help"><button type="button" class="help-btn" aria-label="说明">?</button>` +
+        `<span class="help-pop" role="tooltip">${escapeHtml(text)}</span></span>`
+    );
 }
 
 /** 渲染历史记录表格(表头随窗口动态生成, 支持分页与内联编辑)。 */
@@ -529,9 +558,29 @@ function goToPage(page) {
     renderTable(lastRecords);
 }
 
+/** 帮助浮层交互: 点击 "?" 切换显示(兼容触屏), 点击别处则收起。 */
+function attachHelpToggle() {
+    document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".help-btn");
+        if (btn) {
+            // 点击 "?": 切换当前浮层, 同时收起其它已展开的浮层
+            const help = btn.parentElement;
+            const opened = help.classList.contains("open");
+            document.querySelectorAll(".help.open").forEach((el) => el.classList.remove("open"));
+            if (!opened) help.classList.add("open");
+            return;
+        }
+        // 点击浮层以外区域: 收起全部
+        if (!e.target.closest(".help-pop")) {
+            document.querySelectorAll(".help.open").forEach((el) => el.classList.remove("open"));
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("date").value = todayStr();
     document.getElementById("record-form").addEventListener("submit", submitRecord);
+    attachHelpToggle();
     document.getElementById("page-prev").addEventListener("click", () => {
         if (currentPage > 1) goToPage(currentPage - 1);
     });

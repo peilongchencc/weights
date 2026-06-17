@@ -165,6 +165,82 @@ body {
     font-weight: 700;
 }
 
+/* 统计项说明: "?" 按钮 + 悬浮/点击展开的浮层 */
+.stat-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.help {
+    position: relative;
+    display: inline-flex;
+}
+
+.help-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.help-btn:hover {
+    background: var(--primary);
+    color: #fff;
+}
+
+.help-pop {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+    z-index: 10;
+    width: max-content;
+    max-width: 240px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(17, 24, 39, 0.92);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.6;
+    text-align: left;
+    white-space: pre-line;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s;
+}
+
+/* 浮层下方小三角 */
+.help-pop::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(17, 24, 39, 0.92);
+}
+
+.help:hover .help-pop,
+.help.open .help-pop {
+    opacity: 1;
+    visibility: visible;
+}
+
 /* 图表 */
 .chart-card h2,
 .table-card h2 {
