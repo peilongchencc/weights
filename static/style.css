@@ -62,9 +62,23 @@ body {
     margin-bottom: 20px;
 }
 
+/* 提示条与身高胶囊并排显示在录入卡顶部 */
+.form-top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.form-top .tip {
+    flex: 1;
+    margin-bottom: 0;
+}
+
 /* 个人档案(身高): 录入卡顶部的胶囊信息条 */
 .profile-bar {
-    margin-bottom: 18px;
+    flex: none;
 }
 
 /* 只读态与编辑态共用的胶囊外观 */
@@ -285,6 +299,14 @@ body {
 .stat-value {
     font-size: 22px;
     font-weight: 700;
+}
+
+/* BMI 等数值后的分类小标签(偏瘦/正常/超重/肥胖) */
+.stat-tag {
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    vertical-align: middle;
 }
 
 /* 统计项说明: "?" 按钮 + 悬浮/点击展开的浮层 */

@@ -67,6 +67,22 @@ async function loadRecords() {
     renderChart(records);
 }
 
+/**
+ * 按中国成人 BMI 区间返回对应的颜色与分类标签。
+
+ * Args:
+ *     bmi: 身体质量指数数值。
+
+ * Returns:
+ *     dict: 含 color(CSS 变量)与 category(中文分类)两个字段。
+ */
+function bmiCategory(bmi) {
+    if (bmi < 18.5) return { color: "#38bdf8", category: "偏瘦" };
+    if (bmi < 24) return { color: "var(--ma7)", category: "正常" };
+    if (bmi < 28) return { color: "var(--ma3)", category: "超重" };
+    return { color: "var(--danger)", category: "肥胖" };
+}
+
 /** 渲染顶部统计卡片(随窗口数量动态生成)。 */
 function renderStats(records) {
     const card = document.getElementById("stats-card");
@@ -115,13 +131,21 @@ function renderStats(records) {
     if (profileHeight != null && latest) {
         const m = profileHeight / 100;
         const bmi = latest.weight / (m * m);
+        const { color, category } = bmiCategory(bmi);
         cells.push({
             label: "BMI",
-            value: bmi.toFixed(1),
-            help:
-                `身体质量指数 = 体重(kg) / 身高(m)²。\n` +
-                `当前以最新体重 ${latest.weight.toFixed(2)} kg 与身高 ${profileHeight} cm 计算。\n` +
-                `参考(中国成人): 偏瘦 <18.5, 正常 18.5-23.9, 超重 24-27.9, 肥胖 ≥28。`,
+            value:
+                `${bmi.toFixed(1)}` +
+                `<span class="stat-tag" style="color:${color}">${category}</span>`,
+            color,
+            helpHtml:
+                `身体质量指数 = 体重(kg) / 身高(m)²。<br>` +
+                `当前以最新体重 ${latest.weight.toFixed(2)} kg 与身高 ${profileHeight} cm 计算。<br>` +
+                `参考(中国成人):<br>` +
+                `<span style="color:#38bdf8">● 偏瘦 &lt;18.5</span><br>` +
+                `<span style="color:var(--ma7)">● 正常 18.5-23.9</span><br>` +
+                `<span style="color:var(--ma3)">● 超重 24-27.9</span><br>` +
+                `<span style="color:var(--danger)">● 肥胖 ≥28</span>`,
         });
     }
 
@@ -129,8 +153,8 @@ function renderStats(records) {
         cells
             .map(
                 (c) =>
-                    `<div class="stat"><span class="stat-label">${c.label}${helpMarkup(c.help)}</span>` +
-                    `<span class="stat-value">${c.value}</span></div>`
+                    `<div class="stat"><span class="stat-label">${c.label}${helpMarkup(c.helpHtml || c.help, !!c.helpHtml)}</span>` +
+                    `<span class="stat-value"${c.color ? ` style="color:${c.color}"` : ""}>${c.value}</span></div>`
             )
             .join("") +
         `<div class="stat">` +
@@ -207,11 +231,12 @@ async function submitProfile(e) {
 }
 
 /** 生成 "?" 帮助按钮与浮层的 HTML; 无说明文本时返回空串。 */
-function helpMarkup(text) {
+function helpMarkup(text, isHtml = false) {
     if (!text) return "";
+    const body = isHtml ? text : escapeHtml(text);
     return (
         `<span class="help"><button type="button" class="help-btn" aria-label="说明">?</button>` +
-        `<span class="help-pop" role="tooltip">${escapeHtml(text)}</span></span>`
+        `<span class="help-pop" role="tooltip">${body}</span></span>`
     );
 }
 
