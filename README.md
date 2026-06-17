@@ -3,6 +3,7 @@
 - [每日体重记录](#每日体重记录)
   - [功能特性](#功能特性)
   - [目录结构](#目录结构)
+  - [依赖说明](#依赖说明)
   - [快速开始](#快速开始)
   - [后台运行](#后台运行)
   - [接口说明](#接口说明)
@@ -47,6 +48,33 @@ weights/
 ├── requirements-dev.txt     # 测试依赖
 └── .env
 ```
+
+## 依赖说明
+
+项目把依赖拆成两个文件, 二者是**互补关系**(而非重复), 用于区分"生产运行需要的"和"只有开发/测试才需要的":
+
+| 文件                   | 用途       | 内容                                              | 安装场景         |
+| ---------------------- | ---------- | ------------------------------------------------- | ---------------- |
+| `requirements.txt`     | 运行依赖   | FastAPI、uvicorn、aiosqlite、loguru、python-dotenv | 生产、开发都需要 |
+| `requirements-dev.txt` | 测试依赖   | pytest、httpx                                      | 仅开发/测试需要  |
+
+这样拆分的好处:
+
+- **生产部署更精简**: 线上只装 `requirements.txt`, 不会把 `pytest` 等测试工具带到生产环境, 减小体积与攻击面。
+- **职责清晰**: 一眼区分核心运行依赖与辅助开发工具。
+
+安装方式:
+
+```bash
+# 生产环境: 只装运行依赖
+pip install -r requirements.txt
+
+# 开发环境: 运行依赖 + 测试依赖都要装
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+> `requirements-dev.txt` 未通过 `-r requirements.txt` 引入运行依赖, 因此开发环境需分别安装两个文件。
 
 ## 快速开始
 
