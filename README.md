@@ -6,11 +6,16 @@
   - [依赖说明](#依赖说明)
   - [快速开始](#快速开始)
   - [后台运行](#后台运行)
+    - [如何判断服务是否真正在运行(LISTEN vs CLOSED)](#如何判断服务是否真正在运行listen-vs-closed)
   - [接口说明](#接口说明)
   - [测试](#测试)
   - [配置项 (.env)](#配置项-env)
 
 一个用于记录每日体重并自动计算 **3 日 / 7 日移动平均** 的小工具。后端基于 FastAPI + SQLite, 前端为原生 HTML/CSS/JS, 包含录入表单、统计卡片、趋势图与历史记录表。
+
+<p align="center">
+  <img src="./images/surface.png" alt="每日体重记录应用界面截图" width="720">
+</p>
 
 > 生成的 weights.db 可以在IDE(例如Cursor)使用 SQLite Viewer 插件打开查看。
 
