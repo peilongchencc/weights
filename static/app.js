@@ -423,15 +423,24 @@ function renderChart(records) {
             points="${pts}" stroke-linejoin="round" stroke-linecap="round" />`;
     };
 
-    const dots = records
-        .map((r, i) => `<circle cx="${x(i)}" cy="${y(r.weight)}" r="3" fill="${WEIGHT_COLOR}" />`)
-        .join("");
-
-    // 各曲线序列(体重 + 各窗口均值), 用于高亮点与提示内容
+    // 各曲线序列(体重 + 各窗口均值), 用于静态数据点、高亮点与提示内容
     const series = [
         { key: "weight", color: WEIGHT_COLOR },
         ...currentWindows.map((w, i) => ({ key: `ma_${w}`, color: maColor(i) })),
     ];
+
+    // 静态数据点: 所有序列都画小圆点, 仅在该点有值时绘制
+    const dots = series
+        .map((s) =>
+            records
+                .map((r, i) =>
+                    r[s.key] != null
+                        ? `<circle cx="${x(i)}" cy="${y(r[s.key])}" r="3" fill="${s.color}" />`
+                        : ""
+                )
+                .join("")
+        )
+        .join("");
 
     // 悬停高亮点(初始隐藏, 交互时按当前数据点更新位置)
     const activeDots = series
