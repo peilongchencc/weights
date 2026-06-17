@@ -62,7 +62,7 @@ pip install -r requirements.txt
 python -m app.main
 ```
 
-启动后访问 <http://127.0.0.1:8000> 即可使用。
+启动后访问 <http://127.0.0.1:8421> 即可使用。
 
 ## 后台运行
 
@@ -77,16 +77,43 @@ nohup python -m app.main > logs/server.log 2>&1 &
 tail -f logs/server.log
 ```
 
-查看服务是否在运行(端口取自 `.env` 的 `PORT`, 默认 8000):
+查看服务是否在运行(端口取自 `.env` 的 `PORT`, 默认 8421):
 
 ```bash
-lsof -i:8000          # 查看占用 8000 端口的进程
+lsof -i:8421          # 查看占用 8421 端口的进程
 ```
 
 停止服务(按端口号, 精确结束监听该端口的进程):
 
 ```bash
-lsof -ti:8000 | xargs kill
+lsof -ti:8421 | xargs kill
+```
+
+### 如何判断服务是否真正在运行(LISTEN vs CLOSED)
+
+`lsof -i:<端口>` 的输出未必代表服务已启动, 需要看 `NAME` 列末尾的连接状态:
+
+- **`(LISTEN)`**: 有进程正在**监听**该端口, 说明服务已启动。例如:
+
+```
+COMMAND   PID  ...  TYPE  ...  NODE NAME
+python    xxx  ...  IPv4  ...  TCP 127.0.0.1:8421 (LISTEN)
+```
+
+- **`(CLOSED)`**: 只是**已关闭的客户端连接**残留(常见于浏览器之前访问过该端口), 并非服务在监听。例如:
+
+```
+COMMAND   PID            USER  ...  TYPE  ...  NODE NAME
+Google  91875   peilongchencc  ...  IPv4  ...  TCP localhost:59682->localhost:8421 (CLOSED)
+```
+
+> 说明: 部分系统会把端口号显示为服务别名(如 8000 显示为 `irdmi`)。`->` 箭头表示该进程是作为**客户端**主动连出, 而非监听端口。这类 `CLOSED` 连接会被系统自动回收, 无需处理。
+
+加 `-nP` 可禁用端口别名与主机名解析, 输出更直观; 也可只筛选监听状态来明确判断服务是否启动:
+
+```bash
+lsof -nP -i:8421                         # 不解析别名/主机名, 输出更清晰
+lsof -nP -iTCP:8421 -sTCP:LISTEN         # 仅看监听状态, 无输出即服务未启动
 ```
 
 ## 接口说明
@@ -135,7 +162,7 @@ python -m pytest -q
 | 变量         | 说明                         | 默认值          |
 | ------------ | ---------------------------- | --------------- |
 | `HOST`       | 监听地址                     | `127.0.0.1`     |
-| `PORT`       | 监听端口                     | `8000`          |
+| `PORT`       | 监听端口                     | `8421`          |
 | `DB_PATH`    | SQLite 文件路径              | `weights.db`    |
 | `LOG_PATH`   | 日志文件路径                 | `logs/app.log`  |
 | `MA_WINDOWS` | 移动平均窗口(逗号分隔, 天)   | `3,7`           |

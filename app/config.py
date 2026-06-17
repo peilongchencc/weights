@@ -31,7 +31,7 @@ def _parse_windows(raw: str) -> list[int]:
 
 
 HOST: str = os.getenv("HOST", "127.0.0.1")
-PORT: int = int(os.getenv("PORT", "8000"))
+PORT: int = int(os.getenv("PORT", "8421"))
 DB_PATH: Path = BASE_DIR / os.getenv("DB_PATH", "weights.db")
 LOG_PATH: Path = BASE_DIR / os.getenv("LOG_PATH", "logs/app.log")
 MA_WINDOWS: list[int] = _parse_windows(os.getenv("MA_WINDOWS", "3,7"))
