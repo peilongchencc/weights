@@ -21,6 +21,17 @@ CREATE TABLE IF NOT EXISTS weight_records (
 );
 """
 
+# 个人档案建表语句。身高等不随日期变化的全局信息, 用单行表存储:
+# 通过 CHECK(id = 1) 约束确保整表至多一行。
+_CREATE_PROFILE_SQL = """
+CREATE TABLE IF NOT EXISTS profile (
+    id         INTEGER PRIMARY KEY CHECK (id = 1),
+    height_cm  REAL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+"""
+
 
 @asynccontextmanager
 async def get_connection() -> AsyncIterator[aiosqlite.Connection]:
@@ -43,4 +54,5 @@ async def init_db() -> None:
     """初始化数据库, 确保数据表存在。"""
     async with aiosqlite.connect(DB_PATH) as conn:
         await conn.execute(_CREATE_TABLE_SQL)
+        await conn.execute(_CREATE_PROFILE_SQL)
         await conn.commit()

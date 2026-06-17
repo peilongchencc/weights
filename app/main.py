@@ -13,7 +13,7 @@ from loguru import logger
 from app.config import BASE_DIR, HOST, LOG_PATH, PORT, RELOAD
 from app.database import init_db
 from app.request_context import RequestIDMiddleware, register_exception_handler
-from app.routers import records
+from app.routers import profile, records
 
 # 配置 loguru 日志输出到文件(滚动 + 保留)
 LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -35,6 +35,7 @@ app = FastAPI(title="每日体重记录", lifespan=lifespan)
 app.add_middleware(RequestIDMiddleware)
 register_exception_handler(app)
 app.include_router(records.router)
+app.include_router(profile.router)
 
 
 @app.get("/")

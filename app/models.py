@@ -39,3 +39,15 @@ class WeightCreate(BaseModel):
             return None
         stripped = value.strip()
         return stripped or None
+
+
+class ProfileUpdate(BaseModel):
+    """更新个人档案的请求体。
+
+    身高是不随日期变化的全局信息, 单独存储, 不放进每日记录。
+
+    Attributes:
+        height_cm: 身高, 单位 cm, 取值范围 50-300。
+    """
+
+    height_cm: float = Field(..., ge=50, le=300, description="身高(cm), 范围 50-300")

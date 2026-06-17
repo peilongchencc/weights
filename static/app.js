@@ -1,6 +1,12 @@
 "use strict";
 
 const API = "/api/records";
+const PROFILE_API = "/api/profile";
+
+// 当前身高(cm); null 表示尚未设置。用于计算 BMI。
+let profileHeight = null;
+// 尚未设置身高时, 进入编辑默认预填的身高(cm), 让步进器从合理值起步而非 min。
+const DEFAULT_HEIGHT_CM = 175;
 
 // 每页最多展示的记录条数
 const PAGE_SIZE = 30;
@@ -105,6 +111,20 @@ function renderStats(records) {
               `注: 前序记录不足 ${maxWindow} 条时, 按已有的全部前序记录计算。`
             : "今日体重相较此前记录均值的变化。";
 
+    // BMI 卡片: 仅在已设置身高且有最新体重时展示
+    if (profileHeight != null && latest) {
+        const m = profileHeight / 100;
+        const bmi = latest.weight / (m * m);
+        cells.push({
+            label: "BMI",
+            value: bmi.toFixed(1),
+            help:
+                `身体质量指数 = 体重(kg) / 身高(m)²。\n` +
+                `当前以最新体重 ${latest.weight.toFixed(2)} kg 与身高 ${profileHeight} cm 计算。\n` +
+                `参考(中国成人): 偏瘦 <18.5, 正常 18.5-23.9, 超重 24-27.9, 肥胖 ≥28。`,
+        });
+    }
+
     card.innerHTML =
         cells
             .map(
@@ -116,6 +136,74 @@ function renderStats(records) {
         `<div class="stat">` +
         `<span class="stat-label">${diffLabel}${helpMarkup(helpText)}</span>` +
         `<span class="stat-value" style="color:${diffColor}">${diffText}</span></div>`;
+}
+
+/** 显示个人档案区的提示信息。 */
+function showProfileMsg(text, ok) {
+    const el = document.getElementById("profile-msg");
+    el.textContent = text;
+    el.className = "profile-msg " + (ok ? "ok" : "err");
+}
+
+/** 拉取个人档案(身高)并刷新展示。 */
+async function loadProfile() {
+    const res = await fetch(PROFILE_API);
+    const json = await res.json();
+    profileHeight = json.data ? json.data.height_cm : null;
+    renderProfile();
+    // 记录可能已先行加载完成, 此时需重算统计卡以显示 BMI
+    if (lastRecords.length > 0) renderStats(lastRecords);
+}
+
+/** 渲染个人档案的只读展示。 */
+function renderProfile() {
+    const el = document.getElementById("profile-height");
+    el.textContent = profileHeight != null ? `${profileHeight} cm` : "--";
+}
+
+/** 进入身高编辑状态(只读视图与编辑表单互斥显示)。 */
+function startProfileEdit() {
+    document.getElementById("profile-view").hidden = true;
+    document.getElementById("profile-edit").hidden = false;
+    const input = document.getElementById("height");
+    // 未设置过身高时预填默认值, 避免步进器从 min(50) 起步
+    input.value = profileHeight != null ? profileHeight : DEFAULT_HEIGHT_CM;
+    input.focus();
+    input.select();
+}
+
+/** 退出身高编辑状态, 恢复只读展示。 */
+function cancelProfileEdit() {
+    document.getElementById("profile-edit").hidden = true;
+    document.getElementById("profile-view").hidden = false;
+    showProfileMsg("", true);
+}
+
+/** 提交身高(PUT /api/profile), 成功后刷新档案与统计卡(BMI)。 */
+async function submitProfile(e) {
+    e.preventDefault();
+    const height = parseFloat(document.getElementById("height").value);
+    if (!height || height < 50 || height > 300) {
+        showProfileMsg("请输入有效身高(50-300 cm)", false);
+        return;
+    }
+
+    const res = await fetch(PROFILE_API, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ height_cm: height }),
+    });
+    const json = await res.json();
+    if (json.code === 200) {
+        profileHeight = json.data.height_cm;
+        // 只读视图直接更新为新身高, 即为保存成功的反馈, 无需额外提示
+        renderProfile();
+        cancelProfileEdit();
+        // 身高变化会影响 BMI, 重新渲染统计卡
+        renderStats(lastRecords);
+    } else {
+        showProfileMsg(json.message || "保存失败", false);
+    }
 }
 
 /** 生成 "?" 帮助按钮与浮层的 HTML; 无说明文本时返回空串。 */
@@ -587,5 +675,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("page-next").addEventListener("click", () => {
         goToPage(currentPage + 1);
     });
+
+    // 个人档案(身高)交互: 默认只读, 点编辑才可改
+    document.getElementById("profile-edit-btn").addEventListener("click", startProfileEdit);
+    document.getElementById("profile-cancel-btn").addEventListener("click", cancelProfileEdit);
+    document.getElementById("profile-edit").addEventListener("submit", submitProfile);
+
+    loadProfile();
     loadRecords();
 });

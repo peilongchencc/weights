@@ -21,6 +21,7 @@
 - 自动计算移动平均: 默认 3 日与 7 日, 可在 `.env` 中通过 `MA_WINDOWS` 调整。前端会按接口返回的窗口**动态渲染**统计卡片、表格列与趋势曲线, 修改 `MA_WINDOWS` 无需改前端代码。
 - 趋势图同时展示体重曲线与各窗口的移动平均曲线。
 - 支持删除任意一天的记录。
+- 个人档案(身高): 身高作为不随日期变化的全局信息单独存储, 页面顶部默认**只读展示**, 点"编辑"才可修改, 不会被每日录入误改。设置身高后, 统计卡片会自动以最新体重计算并展示 **BMI**。
 
 > 移动平均口径: 采用"最近 N 条记录"(即 N 个数据点)的均值。对每条记录取其自身及之前共 N 条记录求平均; 不足 N 条时用已有记录求平均。该口径对存在缺录的日期更稳健。
 
@@ -35,8 +36,10 @@ weights/
 │   ├── moving_average.py    # 移动平均计算
 │   ├── crud.py              # 数据库增删改查
 │   ├── request_context.py   # request_id 中间件/依赖项/全局异常处理
+│   ├── profile_crud.py      # 个人档案(身高)数据库读写
 │   ├── routers/
-│   │   └── records.py       # 体重记录接口
+│   │   ├── records.py       # 体重记录接口
+│   │   └── profile.py       # 个人档案(身高)接口
 │   └── main.py              # FastAPI 应用入口
 ├── static/                  # 前端页面 (index.html / style.css / app.js)
 ├── tests/                   # pytest 单元/集成测试
@@ -95,6 +98,10 @@ lsof -ti:8000 | xargs kill
 | POST   | `/api/records`        | 新增/更新一天的体重记录    |
 | GET    | `/api/records`        | 查询全部记录(含移动平均)   |
 | DELETE | `/api/records/{date}` | 删除指定日期的记录         |
+| GET    | `/api/profile`        | 查询个人档案(身高)         |
+| PUT    | `/api/profile`        | 设置/更新身高(单位 cm)     |
+
+> 身高存于单行 `profile` 表(`height_cm`, 取值范围 50-300 cm), 与每日体重记录解耦; 前端据此与最新体重计算 BMI。
 
 请求示例(POST `/api/records`):
 
