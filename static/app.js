@@ -48,6 +48,46 @@ function todayStr() {
     return `${y}-${m}-${day}`;
 }
 
+/**
+ * 让日期输入框点击任意位置即弹出原生日期选择器。
+
+ * 原生 <input type="date"> 默认只有点击右侧日历图标才会弹出选择器, 点击文字区域不响应,
+ * 容易让用户困惑。这里在 click 时主动调用 showPicker() 唤起选择器, 改善交互体验。
+
+ * Args:
+ *     input: 目标日期输入框元素, 为空时直接返回。
+ */
+function enableClickToOpenPicker(input) {
+    if (!input || typeof input.showPicker !== "function") return;
+
+    // 点击关联 <label> 会被浏览器转发为「聚焦输入框」, 而日期框一聚焦就会高亮年份段(变蓝)。
+    // 这里拦掉 label 点击的默认行为, 使点标签不再抢焦点; for 关联保留, 不影响屏幕阅读器无障碍。
+    if (input.id) {
+        const label = document.querySelector(`label[for="${input.id}"]`);
+        if (label) {
+            label.addEventListener("click", (e) => e.preventDefault());
+        }
+    }
+
+    input.addEventListener("click", (e) => {
+        // 点击关联 <label> 时浏览器会把 click 转发给输入框, 但坐标仍落在 label 上;
+        // 仅当点击坐标真正落在输入框矩形内时才弹出, 避免点「日期」标签那行空白也触发
+        const rect = input.getBoundingClientRect();
+        const inside =
+            e.clientX >= rect.left &&
+            e.clientX <= rect.right &&
+            e.clientY >= rect.top &&
+            e.clientY <= rect.bottom;
+        if (!inside) return;
+        // showPicker 必须在用户手势中调用, 且旧浏览器/跨域场景可能抛错, 故忽略异常回退到默认行为
+        try {
+            input.showPicker();
+        } catch (_) {
+            // 调用失败时保留原生「点图标弹出」行为, 不影响使用
+        }
+    });
+}
+
 /** 显示表单提示信息。 */
 function showMsg(text, ok) {
     const el = document.getElementById("form-msg");
@@ -850,6 +890,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("record-form").addEventListener("submit", submitRecord);
     // 切换日期时, 实时反映该日期是否已有记录(按钮文案与覆盖提示)
     document.getElementById("date").addEventListener("change", updateFormState);
+    // 点击日期框任意位置即弹出日期选择器, 无需点右侧日历图标
+    enableClickToOpenPicker(document.getElementById("date"));
     attachHelpToggle();
     // 体重历史表与放纵列表共用备注浮层
     attachNoteTooltip(["record-body", "indulgence-body"]);
