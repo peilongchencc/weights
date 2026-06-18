@@ -15,6 +15,10 @@ const TRIGGER_LABELS = { stress: "😣 压力大", reward: "🎉 奖励自己" }
 let lastIndulgences = [];
 // 正在内联编辑的放纵记录 id; null 表示无编辑中行
 let editingIndulgenceId = null;
+// 放纵列表每页条数: 故意取小值, 避免列表过长把下方趋势图挤得太远难以查看
+const IND_PAGE_SIZE = 5;
+// 放纵列表当前页码(1 起)
+let indCurrentPage = 1;
 
 /** 返回某天的全部放纵记录(一天一条, 故至多一条; 供趋势图标记与浮层)。 */
 function indulgencesForDate(date) {
@@ -152,17 +156,26 @@ function segGroupHtml(multi, options, selected) {
     );
 }
 
-/** 渲染放纵记录列表(最新在前, 支持内联编辑与删除)。 */
+/** 渲染放纵记录列表(最新在前, 分页 + 内联编辑与删除)。 */
 function renderIndulgenceList(records) {
     const body = document.getElementById("indulgence-body");
     const emptyTip = document.getElementById("ind-empty-tip");
+    const pager = document.getElementById("ind-pager");
     body.innerHTML = "";
 
     if (!records || records.length === 0) {
         emptyTip.hidden = false;
+        pager.hidden = true;
         return;
     }
     emptyTip.hidden = true;
+
+    // 后端已按日期倒序返回(最新在前), 直接分页即可
+    const totalPages = Math.ceil(records.length / IND_PAGE_SIZE);
+    // 越界保护(如删除后当前页已无数据)
+    indCurrentPage = Math.min(Math.max(indCurrentPage, 1), totalPages);
+    const start = (indCurrentPage - 1) * IND_PAGE_SIZE;
+    const visible = records.slice(start, start + IND_PAGE_SIZE);
 
     const kindOptions = [
         { val: "alcohol", label: KIND_LABELS.alcohol },
@@ -173,7 +186,7 @@ function renderIndulgenceList(records) {
         { val: "reward", label: TRIGGER_LABELS.reward },
     ];
 
-    records.forEach((r) => {
+    visible.forEach((r) => {
         const tr = document.createElement("tr");
         if (r.id === editingIndulgenceId) {
             tr.className = "editing";
@@ -214,6 +227,27 @@ function renderIndulgenceList(records) {
     });
 
     bindIndulgenceRowActions(body);
+    renderIndPager(records.length, totalPages);
+}
+
+/** 渲染放纵列表分页控件(仅一页时仍显示, 便于查看总条数)。 */
+function renderIndPager(total, totalPages) {
+    const pager = document.getElementById("ind-pager");
+    const info = document.getElementById("ind-page-info");
+    const prev = document.getElementById("ind-page-prev");
+    const next = document.getElementById("ind-page-next");
+
+    pager.hidden = false;
+    info.textContent = `第 ${indCurrentPage} / ${totalPages} 页 · 共 ${total} 条`;
+    prev.disabled = indCurrentPage <= 1;
+    next.disabled = indCurrentPage >= totalPages;
+}
+
+/** 翻页并重新渲染放纵列表(切页时退出内联编辑态)。 */
+function goToIndPage(page) {
+    indCurrentPage = page;
+    editingIndulgenceId = null;
+    renderIndulgenceList(lastIndulgences);
 }
 
 /** 绑定放纵列表行内的编辑/删除/保存/取消事件, 并为编辑行的分段控件挂交互。 */
@@ -311,6 +345,8 @@ async function submitIndulgence(e) {
         showIndulgenceMsg("已记录 ✓", true);
         document.getElementById("ind-note").value = "";
         editingIndulgenceId = null;
+        // 新增/覆盖后回到第一页, 确保刚记录的(最新)那条可见
+        indCurrentPage = 1;
         await loadIndulgences();
     } else {
         showIndulgenceMsg(json.message || "保存失败", false);
@@ -366,6 +402,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("indulgence-form").addEventListener("submit", submitIndulgence);
     // 切换日期时, 实时反映该日期是否已有放纵记录(按钮文案与覆盖提示)
     document.getElementById("ind-date").addEventListener("change", updateIndulgenceFormState);
+    // 放纵列表分页按钮
+    document.getElementById("ind-page-prev").addEventListener("click", () => {
+        if (indCurrentPage > 1) goToIndPage(indCurrentPage - 1);
+    });
+    document.getElementById("ind-page-next").addEventListener("click", () => {
+        goToIndPage(indCurrentPage + 1);
+    });
     // 接入自定义日历选择器(组件定义见 datepicker.js)
     attachDatePicker(document.getElementById("ind-date"));
     loadIndulgences();

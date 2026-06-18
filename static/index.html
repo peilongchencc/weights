@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>每日体重记录</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
-    <link rel="stylesheet" href="/static/style.css?v=2" />
+    <link rel="stylesheet" href="/static/style.css?v=3" />
 </head>
 <body>
     <main class="container">
@@ -128,6 +128,11 @@
                 </table>
             </div>
             <p id="ind-empty-tip" class="empty-tip" hidden>还没有放纵记录，继续保持~</p>
+            <div class="pager" id="ind-pager" hidden>
+                <button id="ind-page-prev" class="btn-page" type="button">上一页</button>
+                <span id="ind-page-info" class="page-info"></span>
+                <button id="ind-page-next" class="btn-page" type="button">下一页</button>
+            </div>
         </section>
 
         <section class="card chart-card">
@@ -155,8 +160,8 @@
         </section>
     </main>
 
-    <script src="/static/datepicker.js?v=2"></script>
-    <script src="/static/app.js?v=2"></script>
-    <script src="/static/indulgence.js?v=2"></script>
+    <script src="/static/datepicker.js?v=3"></script>
+    <script src="/static/app.js?v=3"></script>
+    <script src="/static/indulgence.js?v=3"></script>
 </body>
 </html>
