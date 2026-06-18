@@ -17,6 +17,10 @@
   <img src="./images/surface.png" alt="每日体重记录应用界面截图" width="720">
 </p>
 
+<p align="center">
+  <img src="./images/indulgences.png" alt="放纵记录应用界面截图" width="720">
+</p>
+
 > 生成的 weights.db 可以在IDE(例如Cursor)使用 SQLite Viewer 插件打开查看。
 
 ## 功能特性
