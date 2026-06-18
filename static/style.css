@@ -887,6 +887,22 @@ tr.editing {
     font-weight: 700;
     color: var(--text);
     letter-spacing: 0.5px;
+    border: none;
+    background: transparent;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-family: inherit;
+}
+
+/* 可点击的标题(日/月视图): hover 提示可下钻跳转 */
+button.dp-title {
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+button.dp-title:hover {
+    background: #f1f4ff;
+    color: var(--primary);
 }
 
 .dp-nav {
@@ -972,6 +988,59 @@ tr.editing {
     color: #fff;
     font-weight: 700;
     box-shadow: none;
+}
+
+/* 月/年视图: 3 列网格 */
+.dp-mygrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.dp-mcell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.dp-mcell:hover {
+    background: #eef2ff;
+    color: var(--primary);
+}
+
+.dp-mcell.today {
+    font-weight: 700;
+    color: var(--primary);
+    box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.dp-mcell.selected,
+.dp-mcell.selected:hover {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: none;
+}
+
+/* 未来日期/月份/年份: 禁用且不可点击 */
+.dp-cell.disabled,
+.dp-cell.disabled:hover,
+.dp-mcell.disabled,
+.dp-mcell.disabled:hover,
+.dp-nav.disabled,
+.dp-nav.disabled:hover {
+    color: #d7dbe4;
+    background: transparent;
+    box-shadow: none;
+    cursor: not-allowed;
 }
 
 /* 底部: 清除 / 今天 */
