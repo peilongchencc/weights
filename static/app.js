@@ -61,36 +61,6 @@ function disableLabelClickFocus() {
     });
 }
 
-/**
- * 让日期输入框点击任意位置即弹出原生日期选择器。
-
- * 原生 <input type="date"> 默认只有点击右侧日历图标才会弹出选择器, 点击文字区域不响应,
- * 容易让用户困惑。这里在 click 时主动调用 showPicker() 唤起选择器, 改善交互体验。
-
- * Args:
- *     input: 目标日期输入框元素, 为空时直接返回。
- */
-function enableClickToOpenPicker(input) {
-    if (!input || typeof input.showPicker !== "function") return;
-    input.addEventListener("click", (e) => {
-        // 点击关联 <label> 时浏览器会把 click 转发给输入框, 但坐标仍落在 label 上;
-        // 仅当点击坐标真正落在输入框矩形内时才弹出, 避免点「日期」标签那行空白也触发
-        const rect = input.getBoundingClientRect();
-        const inside =
-            e.clientX >= rect.left &&
-            e.clientX <= rect.right &&
-            e.clientY >= rect.top &&
-            e.clientY <= rect.bottom;
-        if (!inside) return;
-        // showPicker 必须在用户手势中调用, 且旧浏览器/跨域场景可能抛错, 故忽略异常回退到默认行为
-        try {
-            input.showPicker();
-        } catch (_) {
-            // 调用失败时保留原生「点图标弹出」行为, 不影响使用
-        }
-    });
-}
-
 /** 显示表单提示信息。 */
 function showMsg(text, ok) {
     const el = document.getElementById("form-msg");
@@ -895,8 +865,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("date").addEventListener("change", updateFormState);
     // 全页统一: 点 label 文字不再聚焦关联输入框(含放纵表单), 避免误触困惑
     disableLabelClickFocus();
-    // 点击日期框任意位置即弹出日期选择器, 无需点右侧日历图标
-    enableClickToOpenPicker(document.getElementById("date"));
+    // 接入自定义日历选择器(组件定义见 datepicker.js)
+    attachDatePicker(document.getElementById("date"));
     attachHelpToggle();
     // 体重历史表与放纵列表共用备注浮层
     attachNoteTooltip(["record-body", "indulgence-body"]);

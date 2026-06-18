@@ -835,6 +835,176 @@ tr.editing {
 .ind-tag.trigger-stress { background: #fee2e2; color: #b91c1c; }
 .ind-tag.trigger-reward { background: #dcfce7; color: #15803d; }
 
+/* 日期输入框: 只读文本 + 右侧日历图标, 点击唤起自定义日历浮层 */
+.date-input {
+    cursor: pointer;
+    background-color: #fff;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%236b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px 16px;
+    padding-right: 38px;
+    caret-color: transparent;
+}
+
+.date-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 109, 245, 0.15);
+}
+
+/* 自定义日历浮层 */
+.dp-popup {
+    position: fixed;
+    z-index: 1100;
+    width: 280px;
+    padding: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(31, 41, 55, 0.16);
+    user-select: none;
+    transform-origin: top center;
+    animation: dp-pop 0.14s ease-out;
+}
+
+@keyframes dp-pop {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 头部: 年/月翻页与标题 */
+.dp-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.dp-title {
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.5px;
+}
+
+.dp-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.dp-nav:hover {
+    background: #f1f4ff;
+    color: var(--primary);
+}
+
+/* 星期表头 */
+.dp-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 4px;
+}
+
+.dp-weekday {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 4px 0;
+}
+
+/* 日期网格 */
+.dp-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.dp-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.dp-cell:hover {
+    background: #eef2ff;
+    color: var(--primary);
+}
+
+/* 非本月日期: 弱化显示 */
+.dp-cell.muted {
+    color: #c4c9d4;
+}
+
+/* 今天: 主色描边圆点 */
+.dp-cell.today {
+    font-weight: 700;
+    color: var(--primary);
+    box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+/* 选中日期: 主色实心 */
+.dp-cell.selected,
+.dp-cell.selected:hover {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: none;
+}
+
+/* 底部: 清除 / 今天 */
+.dp-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+.dp-foot-btn {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.dp-foot-btn:hover {
+    background: #f1f4ff;
+    color: var(--primary);
+}
+
+.dp-foot-today {
+    color: var(--primary);
+}
+
 @media (max-width: 600px) {
     .form { grid-template-columns: 1fr; }
     .indulgence-form { grid-template-columns: 1fr; }

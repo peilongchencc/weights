@@ -366,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("indulgence-form").addEventListener("submit", submitIndulgence);
     // 切换日期时, 实时反映该日期是否已有放纵记录(按钮文案与覆盖提示)
     document.getElementById("ind-date").addEventListener("change", updateIndulgenceFormState);
-    // 点击日期框任意位置即弹出日期选择器, 无需点右侧日历图标(函数定义见 app.js)
-    enableClickToOpenPicker(document.getElementById("ind-date"));
+    // 接入自定义日历选择器(组件定义见 datepicker.js)
+    attachDatePicker(document.getElementById("ind-date"));
     loadIndulgences();
 });

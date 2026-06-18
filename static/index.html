@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>每日体重记录</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
-    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/style.css?v=2" />
 </head>
 <body>
     <main class="container">
@@ -50,7 +50,7 @@
             <form id="record-form" class="form">
                 <div class="field">
                     <label for="date">日期</label>
-                    <input type="date" id="date" name="date" required />
+                    <input type="text" id="date" name="date" class="date-input" readonly required placeholder="选择日期" autocomplete="off" />
                 </div>
                 <div class="field">
                     <label for="weight">体重 (kg) <span class="required">*</span></label>
@@ -94,7 +94,7 @@
             <form id="indulgence-form" class="indulgence-form">
                 <div class="field">
                     <label for="ind-date">日期</label>
-                    <input type="date" id="ind-date" name="ind-date" required />
+                    <input type="text" id="ind-date" name="ind-date" class="date-input" readonly required placeholder="选择日期" autocomplete="off" />
                 </div>
                 <div class="field">
                     <label>类型 <span class="label-hint">(可多选)</span></label>
@@ -155,7 +155,8 @@
         </section>
     </main>
 
-    <script src="/static/app.js"></script>
-    <script src="/static/indulgence.js"></script>
+    <script src="/static/datepicker.js?v=2"></script>
+    <script src="/static/app.js?v=2"></script>
+    <script src="/static/indulgence.js?v=2"></script>
 </body>
 </html>
