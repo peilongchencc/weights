@@ -32,8 +32,9 @@ CREATE TABLE IF NOT EXISTS profile (
 );
 """
 
-# 放纵记录建表语句。一次喝酒/吃好吃的即一条记录, 与每日体重解耦:
-# 同一天可能有多条(既喝酒又吃), 故用自增 id 作主键而非以日期约束唯一。
+# 放纵记录建表语句。类型(喝酒/吃好吃的)已支持单条多选, 故约定"一天一条":
+# 仍保留自增 id 作主键(供编辑/删除按 id 定位), 再以 date 唯一约束保证一天一条,
+# 同一天再次提交时按 date 冲突执行更新(upsert)。
 _CREATE_INDULGENCE_SQL = """
 CREATE TABLE IF NOT EXISTS indulgences (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,6 +44,12 @@ CREATE TABLE IF NOT EXISTS indulgences (
     note       TEXT,
     created_at TEXT NOT NULL
 );
+"""
+
+# 放纵记录"一天一条"的唯一约束。历史库可能未带此约束, 启动时补建唯一索引;
+# 若历史数据存在同日多条会建索引失败, 此处用 IF NOT EXISTS 保证幂等创建。
+_CREATE_INDULGENCE_DATE_INDEX_SQL = """
+CREATE UNIQUE INDEX IF NOT EXISTS idx_indulgences_date ON indulgences (date);
 """
 
 
@@ -69,4 +76,5 @@ async def init_db() -> None:
         await conn.execute(_CREATE_TABLE_SQL)
         await conn.execute(_CREATE_PROFILE_SQL)
         await conn.execute(_CREATE_INDULGENCE_SQL)
+        await conn.execute(_CREATE_INDULGENCE_DATE_INDEX_SQL)
         await conn.commit()

@@ -114,7 +114,8 @@
                     <label for="ind-note">备注 (可选)</label>
                     <input type="text" id="ind-note" name="ind-note" maxlength="500" placeholder="如「项目上线，喝了 3 瓶」，方便日后回看自己的触发规律。" />
                 </div>
-                <button type="submit" class="btn-primary">记一笔</button>
+                <p id="ind-date-hint" class="date-hint" hidden></p>
+                <button type="submit" id="ind-submit-btn" class="btn-primary">记一笔</button>
             </form>
             <p id="indulgence-msg" class="form-msg"></p>
 
@@ -155,5 +156,6 @@
     </main>
 
     <script src="/static/app.js"></script>
+    <script src="/static/indulgence.js"></script>
 </body>
 </html>

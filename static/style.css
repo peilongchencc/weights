@@ -774,6 +774,17 @@ tr.editing {
     color: #fff;
 }
 
+/* 列表内联编辑用的小号分段控件: 缩小内边距与字号以适配表格行 */
+.seg-sm {
+    border-color: var(--primary);
+}
+
+.seg-sm .seg-btn {
+    padding: 5px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
 /* 类型标签旁的"(可多选)"小灰字 */
 .label-hint {
     font-size: 12px;

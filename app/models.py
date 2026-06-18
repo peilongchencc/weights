@@ -57,17 +57,16 @@ class WeightCreate(BaseModel):
         return stripped or None
 
 
-class IndulgenceCreate(BaseModel):
-    """创建放纵记录的请求体。
+class IndulgenceUpdate(BaseModel):
+    """编辑放纵记录的请求体(不含日期)。
 
-    放纵记录用于追踪"压力大喝啤酒"或"奖励自己吃好吃的"等行为,
-    与每日体重解耦; 同一天可记录多条。
+    放纵记录约定"一天一条", 日期作为记录的归属标识不在编辑范围内;
+    编辑仅允许修改类型 / 触发原因 / 备注。
 
     Attributes:
         kinds: 放纵类型(可多选), 取值为 alcohol(喝酒) / food(吃好吃的), 至少一项。
         trigger: 触发原因, stress(压力) 或 reward(奖励)。
         note: 备注, 可选。
-        date: 发生日期, 格式 yyyy-mm-dd。
     """
 
     kinds: list[Literal["alcohol", "food"]] = Field(
@@ -77,7 +76,6 @@ class IndulgenceCreate(BaseModel):
         ..., description="触发原因: stress / reward"
     )
     note: str | None = Field(default=None, max_length=500, description="备注, 可选")
-    date: str = Field(..., description="日期, 格式 yyyy-mm-dd")
 
     @field_validator("kinds")
     @classmethod
@@ -89,12 +87,6 @@ class IndulgenceCreate(BaseModel):
                 seen.append(item)
         return seen
 
-    @field_validator("date")
-    @classmethod
-    def validate_date(cls, value: str) -> str:
-        """校验日期格式是否为 yyyy-mm-dd。"""
-        return _validate_iso_date(value)
-
     @field_validator("note")
     @classmethod
     def strip_note(cls, value: str | None) -> str | None:
@@ -103,6 +95,25 @@ class IndulgenceCreate(BaseModel):
             return None
         stripped = value.strip()
         return stripped or None
+
+
+class IndulgenceCreate(IndulgenceUpdate):
+    """创建/更新放纵记录的请求体。
+
+    放纵记录用于追踪"压力大喝啤酒"或"奖励自己吃好吃的"等行为,
+    与每日体重解耦; 约定一天一条, 同一天再次提交按日期覆盖(upsert)。
+
+    Attributes:
+        date: 发生日期, 格式 yyyy-mm-dd; 其余字段继承自 IndulgenceUpdate。
+    """
+
+    date: str = Field(..., description="日期, 格式 yyyy-mm-dd")
+
+    @field_validator("date")
+    @classmethod
+    def validate_date(cls, value: str) -> str:
+        """校验日期格式是否为 yyyy-mm-dd。"""
+        return _validate_iso_date(value)
 
 
 class ProfileUpdate(BaseModel):

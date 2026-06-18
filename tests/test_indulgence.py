@@ -65,18 +65,65 @@ def test_indulgence_kinds_deduped(client):
     assert resp.json()["data"]["kinds"] == ["food"]
 
 
-def test_indulgence_same_day_multiple(client):
-    """同一天可记录多条, 不会互相覆盖。"""
-    client.post(
+def test_indulgence_same_day_upsert(client):
+    """约定一天一条: 同一天再次提交按日期覆盖, 且复用原 id。"""
+    first = client.post(
         "/api/indulgences",
         json={"date": "2026-06-18", "kinds": ["alcohol"], "trigger": "stress"},
-    )
-    client.post(
+    ).json()["data"]
+    second = client.post(
         "/api/indulgences",
-        json={"date": "2026-06-18", "kinds": ["food"], "trigger": "reward"},
-    )
+        json={
+            "date": "2026-06-18",
+            "kinds": ["food"],
+            "trigger": "reward",
+            "note": "改主意了",
+        },
+    ).json()["data"]
+
+    # id 不变(同日覆盖), 内容更新为后一次提交
+    assert second["id"] == first["id"]
+
     records = client.get("/api/indulgences").json()["data"]["records"]
-    assert len(records) == 2
+    assert len(records) == 1
+    assert records[0]["kinds"] == ["food"]
+    assert records[0]["trigger"] == "reward"
+    assert records[0]["note"] == "改主意了"
+
+
+def test_indulgence_update(client):
+    """编辑接口可修改类型 / 触发原因 / 备注, 日期保持不变。"""
+    created = client.post(
+        "/api/indulgences",
+        json={"date": "2026-06-18", "kinds": ["alcohol"], "trigger": "stress"},
+    ).json()["data"]
+    indulgence_id = created["id"]
+
+    resp = client.put(
+        f"/api/indulgences/{indulgence_id}",
+        json={"kinds": ["alcohol", "food"], "trigger": "reward", "note": "改下备注"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["code"] == 200
+    assert body["data"]["date"] == "2026-06-18"
+    assert body["data"]["kinds"] == ["alcohol", "food"]
+    assert body["data"]["trigger"] == "reward"
+    assert body["data"]["note"] == "改下备注"
+
+    records = client.get("/api/indulgences").json()["data"]["records"]
+    assert records[0]["kinds"] == ["alcohol", "food"]
+    assert records[0]["note"] == "改下备注"
+
+
+def test_indulgence_update_not_found(client):
+    """编辑不存在的 id 返回 404。"""
+    resp = client.put(
+        "/api/indulgences/9999",
+        json={"kinds": ["food"], "trigger": "reward"},
+    )
+    assert resp.json()["code"] == 404
+    assert resp.json()["data"] is None
 
 
 def test_indulgence_list_ordered_desc(client):
