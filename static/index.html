@@ -76,6 +76,59 @@
 
         <section class="card stats-card" id="stats-card"></section>
 
+        <section class="card indulgence-card">
+            <div class="indulgence-head">
+                <h2>放纵记录</h2>
+                <p class="subtitle-inline">压力大想喝啤酒、有进展想奖励自己时，先记一笔，提醒自己别贪杯多吃。</p>
+            </div>
+
+            <div class="streak-banner" id="streak-banner">
+                <div class="streak-main">
+                    <span class="streak-label">已坚持</span>
+                    <span class="streak-days" id="streak-days">--</span>
+                    <span class="streak-label">天没放纵</span>
+                </div>
+                <div class="streak-sub" id="streak-sub">暂无放纵记录</div>
+            </div>
+
+            <form id="indulgence-form" class="indulgence-form">
+                <div class="field">
+                    <label for="ind-date">日期</label>
+                    <input type="date" id="ind-date" name="ind-date" required />
+                </div>
+                <div class="field">
+                    <label>类型 <span class="label-hint">(可多选)</span></label>
+                    <div class="seg-group" id="ind-kind" data-multi="true" data-value="alcohol">
+                        <button type="button" class="seg-btn active" data-val="alcohol">🍺 喝酒</button>
+                        <button type="button" class="seg-btn" data-val="food">🍰 吃好吃的</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>触发原因</label>
+                    <div class="seg-group" id="ind-trigger" data-value="stress">
+                        <button type="button" class="seg-btn active" data-val="stress">😣 压力大</button>
+                        <button type="button" class="seg-btn" data-val="reward">🎉 奖励自己</button>
+                    </div>
+                </div>
+                <div class="field field-wide">
+                    <label for="ind-note">备注 (可选)</label>
+                    <input type="text" id="ind-note" name="ind-note" maxlength="500" placeholder="如「项目上线，喝了 3 瓶」，方便日后回看自己的触发规律。" />
+                </div>
+                <button type="submit" class="btn-primary">记一笔</button>
+            </form>
+            <p id="indulgence-msg" class="form-msg"></p>
+
+            <div class="ind-list-wrap">
+                <table id="indulgence-table">
+                    <thead>
+                        <tr><th>日期</th><th>类型</th><th>触发原因</th><th>备注</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="indulgence-body"></tbody>
+                </table>
+            </div>
+            <p id="ind-empty-tip" class="empty-tip" hidden>还没有放纵记录，继续保持~</p>
+        </section>
+
         <section class="card chart-card">
             <h2>趋势图</h2>
             <div id="chart" class="chart"></div>

@@ -672,6 +672,159 @@ tr.editing {
     text-align: center;
 }
 
+/* 放纵记录卡片 */
+.indulgence-head {
+    margin-bottom: 16px;
+}
+
+.indulgence-head h2 {
+    font-size: 17px;
+}
+
+.subtitle-inline {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* 坚持天数横幅: 核心动力, 天数越久越"绿" */
+.streak-banner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 18px;
+    margin-bottom: 18px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ecfdf5, #eef2ff);
+    border: 1px solid #d1fae5;
+    text-align: center;
+}
+
+.streak-banner.broken-today {
+    background: linear-gradient(135deg, #fef2f2, #fff7ed);
+    border-color: #fecaca;
+}
+
+.streak-main {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.streak-label {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.streak-days {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--ma7);
+}
+
+.streak-banner.broken-today .streak-days {
+    color: var(--danger);
+}
+
+.streak-sub {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+/* 放纵录入表单, 复用 .form 网格风格 */
+.indulgence-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: end;
+}
+
+/* 分段选择控件(类型 / 触发原因) */
+.seg-group {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.seg-btn {
+    flex: 1;
+    padding: 10px 12px;
+    border: none;
+    background: #fff;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.seg-btn + .seg-btn {
+    border-left: 1px solid var(--border);
+}
+
+.seg-btn:hover {
+    background: #f5f7ff;
+}
+
+.seg-btn.active {
+    background: var(--primary);
+    color: #fff;
+}
+
+/* 类型标签旁的"(可多选)"小灰字 */
+.label-hint {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 400;
+}
+
+/* 趋势图"放纵日"图例的竖虚线标记 */
+.dash-mark {
+    width: 0;
+    height: 14px;
+    border-left: 2px dashed #f59e0b;
+    display: inline-block;
+}
+
+/* 趋势图浮层中的放纵详情行 */
+.chart-tooltip .tip-indulge {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fcd34d;
+}
+
+/* 放纵记录列表 */
+.ind-list-wrap {
+    overflow-x: auto;
+    margin-top: 18px;
+}
+
+#indulgence-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+/* 类型/触发的彩色小标签 */
+.ind-tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ind-tag.kind-alcohol { background: #fef3c7; color: #b45309; }
+.ind-tag.kind-food { background: #fce7f3; color: #be185d; }
+.ind-tag.trigger-stress { background: #fee2e2; color: #b91c1c; }
+.ind-tag.trigger-reward { background: #dcfce7; color: #15803d; }
+
 @media (max-width: 600px) {
     .form { grid-template-columns: 1fr; }
+    .indulgence-form { grid-template-columns: 1fr; }
 }

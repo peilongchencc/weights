@@ -2,6 +2,11 @@
 
 const API = "/api/records";
 const PROFILE_API = "/api/profile";
+const INDULGENCE_API = "/api/indulgences";
+
+// 放纵记录的枚举值到中文展示文案的映射
+const KIND_LABELS = { alcohol: "🍺 喝酒", food: "🍰 吃好吃的" };
+const TRIGGER_LABELS = { stress: "😣 压力大", reward: "🎉 奖励自己" };
 
 // 当前身高(cm); null 表示尚未设置。用于计算 BMI。
 let profileHeight = null;
@@ -18,6 +23,8 @@ let editingDate = null;
 let lastRecords = [];
 // 当前后端所用的移动平均窗口(由接口返回, 决定前端动态渲染列数与曲线数)
 let currentWindows = [];
+// 缓存最近一次拉取的放纵记录, 供趋势图标记放纵日复用
+let lastIndulgences = [];
 
 // 操作列图标(内联 SVG, 16x16, 继承 currentColor)
 const ICON_EDIT =
@@ -419,6 +426,12 @@ function renderLegend() {
             `<span class="legend-item"><i class="dot" style="background:${maColor(i)}"></i>${w} 日均值</span>`
         );
     });
+    // 有放纵记录时, 追加放纵日图例(竖虚线 + emoji)
+    if (lastIndulgences.length > 0) {
+        items.push(
+            `<span class="legend-item"><i class="dash-mark"></i>放纵日 🍺🍰</span>`
+        );
+    }
     legend.innerHTML = items.join("");
 }
 
@@ -538,13 +551,38 @@ function renderChart(records) {
         .map((w, i) => line(`ma_${w}`, maColor(i)))
         .join("");
 
+    // 放纵日标记: 在有体重记录的放纵日画竖向参考线(背景层)与顶部 emoji(前景层),
+    // 便于直观对齐 "喝酒/吃好吃的之后, 体重曲线是否抬头"。
+    const indulgeLines = records
+        .map((r, i) =>
+            indulgencesForDate(r.date).length > 0
+                ? `<line x1="${x(i)}" x2="${x(i)}" y1="${pad.top}" y2="${pad.top + innerH}"` +
+                  ` stroke="#f59e0b" stroke-width="1" stroke-dasharray="3 3" opacity="0.5" />`
+                : ""
+        )
+        .join("");
+    const indulgeMarks = records
+        .map((r, i) => {
+            const items = indulgencesForDate(r.date);
+            if (items.length === 0) return "";
+            const kinds = new Set();
+            items.forEach((it) => (it.kinds || []).forEach((k) => kinds.add(k)));
+            let emoji = "";
+            if (kinds.has("alcohol")) emoji += "🍺";
+            if (kinds.has("food")) emoji += "🍰";
+            return `<text x="${x(i)}" y="${pad.top - 6}" text-anchor="middle" font-size="12">${emoji}</text>`;
+        })
+        .join("");
+
     container.innerHTML = `
         <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
             ${grid}
+            ${indulgeLines}
             ${guide}
             ${maLines}
             ${line("weight", WEIGHT_COLOR)}
             ${dots}
+            ${indulgeMarks}
             ${activeDots}
             ${xlabels}
             ${hits}
@@ -570,6 +608,12 @@ function buildChartTip(r) {
             `<div class="tip-row"><i class="tip-dot" style="background:${maColor(i)}"></i>` +
                 `${w} 日均值 <b>${valText}</b></div>`
         );
+    });
+    // 当天若有放纵记录, 追加放纵详情行(触发原因 + 类型)
+    indulgencesForDate(r.date).forEach((it) => {
+        const kinds = (it.kinds || []).map((k) => KIND_LABELS[k] || k).join("、");
+        const trigger = TRIGGER_LABELS[it.trigger] || it.trigger;
+        rows.push(`<div class="tip-row tip-indulge">⚠️ 放纵 · ${trigger} · ${kinds}</div>`);
     });
     return `<div class="tip-date">${r.date}</div>${rows.join("")}`;
 }
@@ -725,6 +769,199 @@ function goToPage(page) {
     renderTable(lastRecords);
 }
 
+/** 显示放纵记录区的提示信息。 */
+function showIndulgenceMsg(text, ok) {
+    const el = document.getElementById("indulgence-msg");
+    el.textContent = text;
+    el.className = "form-msg " + (ok ? "ok" : "err");
+}
+
+/**
+ * 计算两个 yyyy-mm-dd 日期相差的天数(按本地自然日)。
+
+ * Args:
+ *     fromDate: 起始日期字符串。
+ *     toDate: 结束日期字符串。
+
+ * Returns:
+ *     number: toDate 减 fromDate 的天数差(向下取整)。
+ */
+function dayDiff(fromDate, toDate) {
+    const a = new Date(`${fromDate}T00:00:00`);
+    const b = new Date(`${toDate}T00:00:00`);
+    return Math.round((b - a) / 86400000);
+}
+
+/** 拉取放纵记录并刷新坚持天数横幅、列表与趋势图标记。 */
+async function loadIndulgences() {
+    const res = await fetch(INDULGENCE_API);
+    const json = await res.json();
+    const records = json.data ? json.data.records : [];
+    lastIndulgences = records;
+    renderStreak(records);
+    renderIndulgenceList(records);
+    // 放纵记录变化后, 若已有体重数据则重绘趋势图以更新放纵日标记
+    if (lastRecords.length > 0) renderChart(lastRecords);
+}
+
+/** 返回某天的全部放纵记录(用于趋势图标记与浮层)。 */
+function indulgencesForDate(date) {
+    return lastIndulgences.filter((r) => r.date === date);
+}
+
+/**
+ * 渲染"已坚持 N 天没放纵"横幅。
+
+ * N 取今天与最近一次放纵日期的天数差; 当天即放纵则归零并标红提醒。
+
+ * Args:
+ *     records: 放纵记录列表(已按日期倒序)。
+ */
+function renderStreak(records) {
+    const banner = document.getElementById("streak-banner");
+    const daysEl = document.getElementById("streak-days");
+    const subEl = document.getElementById("streak-sub");
+
+    if (!records || records.length === 0) {
+        banner.classList.remove("broken-today");
+        daysEl.textContent = "--";
+        subEl.textContent = "暂无放纵记录，保持住~";
+        return;
+    }
+
+    // 列表已按日期倒序, 第一条即最近一次放纵
+    const latest = records[0];
+    const days = Math.max(0, dayDiff(latest.date, todayStr()));
+    daysEl.textContent = days;
+    banner.classList.toggle("broken-today", days === 0);
+
+    const kinds = (latest.kinds || []).map((k) => KIND_LABELS[k] || k).join("、");
+    const trigger = TRIGGER_LABELS[latest.trigger] || latest.trigger;
+    subEl.textContent =
+        days === 0
+            ? `今天放纵了：${trigger} · ${kinds}，明天重新开始 💪`
+            : `上次：${latest.date} · ${trigger} · ${kinds}`;
+}
+
+/** 渲染放纵记录列表(最新在前, 支持删除)。 */
+function renderIndulgenceList(records) {
+    const body = document.getElementById("indulgence-body");
+    const emptyTip = document.getElementById("ind-empty-tip");
+    body.innerHTML = "";
+
+    if (!records || records.length === 0) {
+        emptyTip.hidden = false;
+        return;
+    }
+    emptyTip.hidden = true;
+
+    records.forEach((r) => {
+        const tr = document.createElement("tr");
+        const kindTags = (r.kinds || [])
+            .map((k) => `<span class="ind-tag kind-${k}">${KIND_LABELS[k] || k}</span>`)
+            .join(" ");
+        const trigger = TRIGGER_LABELS[r.trigger] || r.trigger;
+        const noteCell = r.note
+            ? `<td class="note-cell" data-note="${escapeAttr(r.note)}"><span class="note-text">${escapeHtml(r.note)}</span></td>`
+            : `<td class="note-cell"></td>`;
+        tr.innerHTML = `
+            <td>${r.date}</td>
+            <td>${kindTags}</td>
+            <td><span class="ind-tag trigger-${r.trigger}">${trigger}</span></td>
+            ${noteCell}
+            <td>
+                <div class="action-cell">
+                    <button class="icon-btn btn-del" data-id="${r.id}" title="删除">${ICON_DELETE}</button>
+                </div>
+            </td>
+        `;
+        body.appendChild(tr);
+    });
+
+    body.querySelectorAll(".btn-del").forEach((btn) => {
+        btn.addEventListener("click", () => deleteIndulgence(btn.dataset.id));
+    });
+}
+
+/** 提交一条放纵记录。 */
+async function submitIndulgence(e) {
+    e.preventDefault();
+    const date = document.getElementById("ind-date").value;
+    const kinds = document
+        .getElementById("ind-kind")
+        .dataset.value.split(",")
+        .filter(Boolean);
+    const trigger = document.getElementById("ind-trigger").dataset.value;
+    const note = document.getElementById("ind-note").value;
+
+    if (!date) {
+        showIndulgenceMsg("请选择日期", false);
+        return;
+    }
+    if (kinds.length === 0) {
+        showIndulgenceMsg("请至少选择一个类型", false);
+        return;
+    }
+
+    const res = await fetch(INDULGENCE_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, kinds, trigger, note }),
+    });
+    const json = await res.json();
+    if (json.code === 200) {
+        showIndulgenceMsg("已记录 ✓", true);
+        document.getElementById("ind-note").value = "";
+        await loadIndulgences();
+    } else {
+        showIndulgenceMsg(json.message || "保存失败", false);
+    }
+}
+
+/** 删除指定 id 的放纵记录。 */
+async function deleteIndulgence(id) {
+    if (!confirm("确认删除这条放纵记录?")) return;
+    const res = await fetch(`${INDULGENCE_API}/${id}`, { method: "DELETE" });
+    const json = await res.json();
+    if (json.code === 200) {
+        await loadIndulgences();
+    } else {
+        alert(json.message || "删除失败");
+    }
+}
+
+/**
+ * 绑定分段选择控件: 点击切换选中态, 选中值存于容器的 data-value。
+
+ * data-multi="true" 时为多选(可同时选中多项, 但至少保留一项), data-value
+ * 以逗号拼接; 否则为单选, 点击即互斥切换。
+ */
+function attachSegGroups() {
+    document.querySelectorAll(".seg-group").forEach((group) => {
+        const multi = group.dataset.multi === "true";
+        group.querySelectorAll(".seg-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                if (multi) {
+                    btn.classList.toggle("active");
+                    // 至少保留一个选中, 防止取消到空
+                    if (group.querySelectorAll(".seg-btn.active").length === 0) {
+                        btn.classList.add("active");
+                    }
+                    const vals = [...group.querySelectorAll(".seg-btn.active")].map(
+                        (b) => b.dataset.val
+                    );
+                    group.dataset.value = vals.join(",");
+                } else {
+                    group.dataset.value = btn.dataset.val;
+                    group
+                        .querySelectorAll(".seg-btn")
+                        .forEach((b) => b.classList.toggle("active", b === btn));
+                }
+            });
+        });
+    });
+}
+
 /** 帮助浮层交互: 点击 "?" 切换显示(兼容触屏), 点击别处则收起。 */
 function attachHelpToggle() {
     document.addEventListener("click", (e) => {
@@ -819,6 +1056,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("profile-cancel-btn").addEventListener("click", cancelProfileEdit);
     document.getElementById("profile-edit").addEventListener("submit", submitProfile);
 
+    // 放纵记录交互: 日期默认今天, 分段选择 + 提交
+    document.getElementById("ind-date").value = todayStr();
+    attachSegGroups();
+    document.getElementById("indulgence-form").addEventListener("submit", submitIndulgence);
+
     loadProfile();
     loadRecords();
+    loadIndulgences();
 });

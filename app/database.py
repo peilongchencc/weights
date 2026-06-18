@@ -32,6 +32,19 @@ CREATE TABLE IF NOT EXISTS profile (
 );
 """
 
+# 放纵记录建表语句。一次喝酒/吃好吃的即一条记录, 与每日体重解耦:
+# 同一天可能有多条(既喝酒又吃), 故用自增 id 作主键而非以日期约束唯一。
+_CREATE_INDULGENCE_SQL = """
+CREATE TABLE IF NOT EXISTS indulgences (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    date       TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    trigger    TEXT NOT NULL,
+    note       TEXT,
+    created_at TEXT NOT NULL
+);
+"""
+
 
 @asynccontextmanager
 async def get_connection() -> AsyncIterator[aiosqlite.Connection]:
@@ -55,4 +68,5 @@ async def init_db() -> None:
     async with aiosqlite.connect(DB_PATH) as conn:
         await conn.execute(_CREATE_TABLE_SQL)
         await conn.execute(_CREATE_PROFILE_SQL)
+        await conn.execute(_CREATE_INDULGENCE_SQL)
         await conn.commit()

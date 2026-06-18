@@ -28,6 +28,7 @@
 - 趋势图同时展示体重曲线与各窗口的移动平均曲线。
 - 支持删除任意一天的记录。
 - 个人档案(身高): 身高作为不随日期变化的全局信息单独存储, 页面顶部默认**只读展示**, 点"编辑"才可修改, 不会被每日录入误改。设置身高后, 统计卡片会自动以最新体重计算并展示 **BMI**。
+- 放纵记录: 单独记录"喝酒/吃好吃的"这类放纵行为(**类型可多选**, 一次同时喝酒又吃也能记一条), 并标注**触发原因**(压力大 / 奖励自己)。页面突出展示 **「已坚持 N 天没放纵」** 横幅(当天破功则归零并标红提醒), 帮助靠"不要断签"的心理约束自己; 同时在趋势图上以**竖虚线 + 🍺/🍰 标记**标出放纵日, 直观对比"放纵之后体重曲线是否抬头"。同一天可记录多条, 与每日体重解耦。
 
 > 移动平均口径: 采用"最近 N 条记录"(即 N 个数据点)的均值。对每条记录取其自身及之前共 N 条记录求平均; 不足 N 条时用已有记录求平均。该口径对存在缺录的日期更稳健。
 
@@ -43,9 +44,11 @@ weights/
 │   ├── crud.py              # 数据库增删改查
 │   ├── request_context.py   # request_id 中间件/依赖项/全局异常处理
 │   ├── profile_crud.py      # 个人档案(身高)数据库读写
+│   ├── indulgence_crud.py   # 放纵记录数据库读写
 │   ├── routers/
 │   │   ├── records.py       # 体重记录接口
-│   │   └── profile.py       # 个人档案(身高)接口
+│   │   ├── profile.py       # 个人档案(身高)接口
+│   │   └── indulgence.py    # 放纵记录接口
 │   └── main.py              # FastAPI 应用入口
 ├── static/                  # 前端页面 (index.html / style.css / app.js)
 ├── tests/                   # pytest 单元/集成测试
@@ -160,8 +163,19 @@ lsof -nP -iTCP:8421 -sTCP:LISTEN         # 仅看监听状态, 无输出即服�
 | DELETE | `/api/records/{date}` | 删除指定日期的记录         |
 | GET    | `/api/profile`        | 查询个人档案(身高)         |
 | PUT    | `/api/profile`        | 设置/更新身高(单位 cm)     |
+| POST   | `/api/indulgences`    | 新增一条放纵记录           |
+| GET    | `/api/indulgences`    | 查询全部放纵记录(最新在前) |
+| DELETE | `/api/indulgences/{id}` | 删除指定 id 的放纵记录   |
 
 > 身高存于单行 `profile` 表(`height_cm`, 取值范围 50-300 cm), 与每日体重记录解耦; 前端据此与最新体重计算 BMI。
+
+> 放纵记录存于 `indulgences` 表, 每条含 `date` / `kind` / `trigger`(`stress` 压力 / `reward` 奖励) / `note`。其中 `kind` 支持**多选**, 取值为 `alcohol`(喝酒) / `food`(吃好吃的), 请求体用数组字段 `kinds`(如 `["alcohol","food"]`, 至少一项), 库内以逗号拼接存于 `kind` 列、读取时拆回数组。同一天可多条, 以自增 `id` 标识。「已坚持 N 天」由前端按最近一条记录日期计算, 后端只负责存取。
+
+请求示例(POST `/api/indulgences`):
+
+```json
+{ "date": "2026-06-18", "kinds": ["alcohol", "food"], "trigger": "stress", "note": "项目延期，喝酒又点了外卖" }
+```
 
 请求示例(POST `/api/records`):
 
@@ -188,7 +202,7 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-测试覆盖移动平均计算(纯函数)与三个接口的增删改查、覆盖更新、参数校验及 `request_id` 一致性。
+测试覆盖移动平均计算(纯函数)与体重记录、个人档案、放纵记录三组接口的增删改查、覆盖更新、参数校验及 `request_id` 一致性。
 
 ## 配置项 (.env)
 
