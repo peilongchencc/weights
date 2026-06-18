@@ -49,6 +49,19 @@ function todayStr() {
 }
 
 /**
+ * 禁止「点击 label 文字聚焦其关联输入框」的默认行为。
+
+ * 原生 label[for] 被点击时浏览器会把焦点转发给关联控件, 导致点击输入框上方的标题文字
+ * 也会选中/聚焦输入框(日期框还会高亮变蓝), 让用户困惑。这里统一拦截全页带 for 的 label
+ * 点击默认行为; for 关联保留, 不影响屏幕阅读器无障碍。
+ */
+function disableLabelClickFocus() {
+    document.querySelectorAll("label[for]").forEach((label) => {
+        label.addEventListener("click", (e) => e.preventDefault());
+    });
+}
+
+/**
  * 让日期输入框点击任意位置即弹出原生日期选择器。
 
  * 原生 <input type="date"> 默认只有点击右侧日历图标才会弹出选择器, 点击文字区域不响应,
@@ -59,16 +72,6 @@ function todayStr() {
  */
 function enableClickToOpenPicker(input) {
     if (!input || typeof input.showPicker !== "function") return;
-
-    // 点击关联 <label> 会被浏览器转发为「聚焦输入框」, 而日期框一聚焦就会高亮年份段(变蓝)。
-    // 这里拦掉 label 点击的默认行为, 使点标签不再抢焦点; for 关联保留, 不影响屏幕阅读器无障碍。
-    if (input.id) {
-        const label = document.querySelector(`label[for="${input.id}"]`);
-        if (label) {
-            label.addEventListener("click", (e) => e.preventDefault());
-        }
-    }
-
     input.addEventListener("click", (e) => {
         // 点击关联 <label> 时浏览器会把 click 转发给输入框, 但坐标仍落在 label 上;
         // 仅当点击坐标真正落在输入框矩形内时才弹出, 避免点「日期」标签那行空白也触发
@@ -890,6 +893,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("record-form").addEventListener("submit", submitRecord);
     // 切换日期时, 实时反映该日期是否已有记录(按钮文案与覆盖提示)
     document.getElementById("date").addEventListener("change", updateFormState);
+    // 全页统一: 点 label 文字不再聚焦关联输入框(含放纵表单), 避免误触困惑
+    disableLabelClickFocus();
     // 点击日期框任意位置即弹出日期选择器, 无需点右侧日历图标
     enableClickToOpenPicker(document.getElementById("date"));
     attachHelpToggle();
