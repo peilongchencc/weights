@@ -92,7 +92,11 @@ async function loadIndulgences() {
 /**
  * 渲染"已坚持 N 天没放纵"横幅。
  *
- * N 取今天与最近一次放纵日期的天数差; 当天即放纵则归零并标红提醒。
+ * 坚持天数取"完整度过的干净自然日"数量, 即今天与最近一次放纵日的自然日差
+ * 再减 1: 放纵当天与次日均记为第 0 天, 之后每多过一整天 +1。
+ * (例: 06-17 放纵, 06-18 显示 0 天, 06-19 显示 1 天。)
+ * 是否"今天破功"单独按"上次放纵日 === 今天"判断, 与显示天数解耦,
+ * 避免次日(天数同为 0)被误标红。
  *
  * Args:
  *     records: 放纵记录列表(已按日期倒序)。
@@ -111,16 +115,17 @@ function renderStreak(records) {
 
     // 列表已按日期倒序, 第一条即最近一次放纵
     const latest = records[0];
-    const days = Math.max(0, dayDiff(latest.date, todayStr()));
+    const diff = dayDiff(latest.date, todayStr());
+    const brokenToday = diff === 0;
+    const days = Math.max(0, diff - 1);
     daysEl.textContent = days;
-    banner.classList.toggle("broken-today", days === 0);
+    banner.classList.toggle("broken-today", brokenToday);
 
     const kinds = (latest.kinds || []).map((k) => KIND_LABELS[k] || k).join("、");
     const trigger = TRIGGER_LABELS[latest.trigger] || latest.trigger;
-    subEl.textContent =
-        days === 0
-            ? `今天放纵了：${trigger} · ${kinds}，明天重新开始 💪`
-            : `上次：${latest.date} · ${trigger} · ${kinds}`;
+    subEl.textContent = brokenToday
+        ? `今天放纵了：${trigger} · ${kinds}，明天重新开始 💪`
+        : `上次：${latest.date} · ${trigger} · ${kinds}`;
 }
 
 /**
