@@ -94,13 +94,58 @@ async function loadIndulgences() {
 }
 
 /**
- * 渲染"已坚持 N 天没放纵"横幅。
+ * 由放纵记录计算坚持天数相关统计(当前 / 历史最佳 / 上一段)。
  *
- * 坚持天数取"完整度过的干净自然日"数量, 即今天与最近一次放纵日的自然日差
+ * 全部沿用统一口径"完整度过的干净自然日"数量, 即两个日期的自然日差再减 1:
+ *   - 当前坚持: 今天与最近一次放纵日的差减 1(放纵当天与次日均为第 0 天)。
+ *   - 已结束坚持段: 相邻两次放纵之间的差减 1。
+ *   - 历史最佳: 各"已结束坚持段"与"当前进行中段"一并取最大值。
+ *   - 上一段坚持: 最近一次已结束的坚持段(即最后两次放纵之间)。
+ * 第一次放纵之前没有可锚定的起点, 故不纳入统计, 避免出现虚高数字。
+ *
+ * Args:
+ *     records: 放纵记录列表(已按日期倒序)。
+ *
+ * Returns:
+ *     object: 含 hasData / current / longest / previous / bestCompleted /
+ *         brokenToday / latest 的统计结果; 无记录时 hasData 为 false。
+ */
+function computeStreakStats(records) {
+    if (!records || records.length === 0) {
+        return { hasData: false };
+    }
+
+    // 升序排列, 便于按"相邻两次放纵"逐段计算干净天数
+    const asc = [...records].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const latest = asc[asc.length - 1];
+    const diff = dayDiff(latest.date, todayStr());
+    const brokenToday = diff === 0;
+    const current = Math.max(0, diff - 1);
+
+    // 各"已结束坚持段": 相邻两次放纵之间的干净自然日(自然日差 - 1)
+    const completedStreaks = [];
+    for (let i = 1; i < asc.length; i++) {
+        completedStreaks.push(Math.max(0, dayDiff(asc[i - 1].date, asc[i].date) - 1));
+    }
+
+    // 上一段坚持: 最近一次已结束坚持段(最后两次放纵之间); 仅一条记录时无此段
+    const previous = completedStreaks.length > 0 ? completedStreaks[completedStreaks.length - 1] : null;
+    // 此前已结束坚持段的最佳值(用于判定当前是否刷新纪录)
+    const bestCompleted = completedStreaks.length > 0 ? Math.max(...completedStreaks) : null;
+    // 历史最佳: 已结束各段与当前进行中段一并取最大
+    const longest = Math.max(current, bestCompleted === null ? 0 : bestCompleted);
+
+    return { hasData: true, current, longest, previous, bestCompleted, brokenToday, latest };
+}
+
+/**
+ * 渲染"已坚持 N 天没放纵"横幅, 含历史最佳与上一段坚持天数。
+ *
+ * 当前坚持天数取"完整度过的干净自然日"数量, 即今天与最近一次放纵日的自然日差
  * 再减 1: 放纵当天与次日均记为第 0 天, 之后每多过一整天 +1。
  * (例: 06-17 放纵, 06-18 显示 0 天, 06-19 显示 1 天。)
  * 是否"今天破功"单独按"上次放纵日 === 今天"判断, 与显示天数解耦,
- * 避免次日(天数同为 0)被误标红。
+ * 避免次日(天数同为 0)被误标红。历史最佳/上一段口径见 computeStreakStats。
  *
  * Args:
  *     records: 放纵记录列表(已按日期倒序)。
@@ -109,27 +154,39 @@ function renderStreak(records) {
     const banner = document.getElementById("streak-banner");
     const daysEl = document.getElementById("streak-days");
     const subEl = document.getElementById("streak-sub");
+    const statsEl = document.getElementById("streak-stats");
+    const bestEl = document.getElementById("streak-best");
+    const prevEl = document.getElementById("streak-prev");
 
-    if (!records || records.length === 0) {
-        banner.classList.remove("broken-today");
+    const stats = computeStreakStats(records);
+
+    if (!stats.hasData) {
+        banner.classList.remove("broken-today", "new-record");
         daysEl.textContent = "--";
+        statsEl.hidden = true;
         subEl.textContent = "暂无放纵记录，保持住~";
         return;
     }
 
-    // 列表已按日期倒序, 第一条即最近一次放纵
-    const latest = records[0];
-    const diff = dayDiff(latest.date, todayStr());
-    const brokenToday = diff === 0;
-    const days = Math.max(0, diff - 1);
-    daysEl.textContent = days;
+    const { current, longest, previous, bestCompleted, brokenToday, latest } = stats;
+    // 当前坚持已严格超过此前所有已结束坚持段 => 刷新纪录(需有可比的历史段)
+    const isNewRecord = !brokenToday && bestCompleted !== null && current > bestCompleted;
+
+    daysEl.textContent = current;
+    bestEl.textContent = longest;
+    prevEl.textContent = previous === null ? "--" : previous;
+    statsEl.hidden = false;
     banner.classList.toggle("broken-today", brokenToday);
+    banner.classList.toggle("new-record", isNewRecord);
 
     const kinds = (latest.kinds || []).map((k) => KIND_LABELS[k] || k).join("、");
     const trigger = TRIGGER_LABELS[latest.trigger] || latest.trigger;
-    subEl.textContent = brokenToday
-        ? `今天放纵了：${trigger} · ${kinds}，明天重新开始 💪`
-        : `上次：${latest.date} · ${trigger} · ${kinds}`;
+    if (brokenToday) {
+        subEl.textContent = `今天放纵了：${trigger} · ${kinds}，明天重新开始 💪`;
+    } else {
+        subEl.textContent = `上次：${latest.date} · ${trigger} · ${kinds}`
+            + (isNewRecord ? "　·　正在刷新纪录 🎉" : "");
+    }
 }
 
 /**
