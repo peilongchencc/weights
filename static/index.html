@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>每日体重记录</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
-    <link rel="stylesheet" href="/static/style.css?v=3" />
+    <link rel="stylesheet" href="/static/style.css?v=4" />
 </head>
 <body>
     <main class="container">
@@ -79,7 +79,7 @@
         <section class="card indulgence-card">
             <div class="indulgence-head">
                 <h2>放纵记录</h2>
-                <p class="subtitle-inline">压力大想喝啤酒、有进展想奖励自己时，先记一笔，提醒自己别贪杯多吃。</p>
+                <p class="subtitle-inline">压力大想喝啤酒、项目/某事有进展想奖励自己时，记一笔，提醒自己别贪杯多吃。</p>
             </div>
 
             <div class="streak-banner" id="streak-banner">
@@ -89,6 +89,14 @@
                     <span class="streak-label">天没放纵</span>
                 </div>
                 <div class="streak-sub" id="streak-sub">暂无放纵记录</div>
+            </div>
+
+            <div class="ind-guide">
+                <p class="ind-guide-q">第二天判断 · 昨天那顿是哪种？</p>
+                <ul class="ind-guide-list">
+                    <li><span class="ind-guide-tag tag-log">记一笔</span>自己没忍住：酗酒、半夜点外卖、烧鸡、海底捞</li>
+                    <li><span class="ind-guide-tag tag-skip">不记</span>有人有局：朋友聚餐、和对象吃大餐、聚会</li>
+                </ul>
             </div>
 
             <form id="indulgence-form" class="indulgence-form">

@@ -734,6 +734,60 @@ tr.editing {
     color: var(--muted);
 }
 
+/* 录入指引: 第二天称重后判断"昨天那顿要不要记"的对照卡 */
+.ind-guide {
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    background: #f8faff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.ind-guide-q {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+}
+
+.ind-guide-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ind-guide-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.ind-guide-tag {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 52px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ind-guide-tag.tag-log {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.ind-guide-tag.tag-skip {
+    background: #dcfce7;
+    color: #15803d;
+}
+
 /* 放纵录入表单, 复用 .form 网格风格 */
 .indulgence-form {
     display: grid;
