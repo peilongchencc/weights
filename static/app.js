@@ -2,11 +2,19 @@
 
 const API = "/api/records";
 const PROFILE_API = "/api/profile";
+const TARGET_API = "/api/profile/target";
 
 // 当前身高(cm); null 表示尚未设置。用于计算 BMI。
 let profileHeight = null;
 // 尚未设置身高时, 进入编辑默认预填的身高(cm), 让步进器从合理值起步而非 min。
 const DEFAULT_HEIGHT_CM = 175;
+
+// 目标体重(kg)与减重起点日期(yyyy-mm-dd); null 表示尚未设置。
+let profileTarget = null;
+let profileTargetStart = null;
+// 达标/维持判定的区间半宽(kg): 最大窗口均值进入 [目标-band, 目标+band] 即视为达标,
+// 之后统计卡从"减重进度"切换为"维持情况", 使目标达成后该卡片仍有效。
+const TARGET_BAND = 1.0;
 
 // 每页最多展示的记录条数
 const PAGE_SIZE = 30;
@@ -37,6 +45,13 @@ const MA_PALETTE = ["#f59e0b", "#10b981", "#a855f7", "#ec4899", "#14b8a6", "#ef4
 /** 按索引取移动平均曲线颜色, 超出调色板长度则循环。 */
 function maColor(index) {
     return MA_PALETTE[index % MA_PALETTE.length];
+}
+
+/** 格式化目标体重为 "70 kg" / "70.5 kg"(整数不带多余小数)。 */
+function fmtKg(value) {
+    const n = Number(value);
+    const text = Number.isInteger(n) ? String(n) : n.toFixed(1);
+    return `${text} kg`;
 }
 
 /** 返回本地时区今天的 yyyy-mm-dd 字符串。 */
@@ -139,14 +154,165 @@ function bmiCategory(bmi) {
     return { color: "var(--danger)", category: "肥胖" };
 }
 
+/**
+ * 取某条记录的"最大窗口均值"作为该日的稳健体重值; 无均值时回退到当日体重。
+
+ * Args:
+ *     record: 单条体重记录。
+ *     key: 最大窗口的均值字段名(如 "ma_7"), 为 null 时直接用体重。
+
+ * Returns:
+ *     number: 用于比较/计算的体重值。
+ */
+function steadyWeight(record, key) {
+    if (key && record[key] != null) return record[key];
+    return record.weight;
+}
+
+/**
+ * 定位起点日期对应的均值: 取该日(或其之前最近一条)记录的最大窗口均值。
+
+ * 用均值而非单日体重作为起点, 可避免起点当天的称重噪声影响整段进度。
+
+ * Args:
+ *     records: 升序(最新在末尾)的记录数组。
+ *     key: 最大窗口均值字段名。
+ *     date: 起点日期 yyyy-mm-dd。
+
+ * Returns:
+ *     number: 起点均值; 起点早于所有记录时回退到最早一条。
+ */
+function avgAtDate(records, key, date) {
+    let chosen = null;
+    for (const r of records) {
+        if (r.date <= date) chosen = r;
+        else break;
+    }
+    if (!chosen) chosen = records[0];
+    return steadyWeight(chosen, key);
+}
+
+/**
+ * 计算两个 yyyy-mm-dd 日期相差的自然日数(toDate 减 fromDate)。
+
+ * 与按"记录条数"计数不同, 这里按本地自然日计算, 即便中间有缺记的日期也能
+ * 反映真实的天数跨度。
+
+ * Args:
+ *     fromDate: 起始日期字符串。
+ *     toDate: 结束日期字符串。
+
+ * Returns:
+ *     number: 自然日差; 同一天为 0。
+ */
+function daysBetween(fromDate, toDate) {
+    const a = new Date(`${fromDate}T00:00:00`);
+    const b = new Date(`${toDate}T00:00:00`);
+    return Math.round((b - a) / 86400000);
+}
+
+/** 生成统计卡中"目标进度"复合格(三行: 标签 / 主数值 / 副信息)的 HTML。 */
+function goalCellHtml(valueHtml, sub, help) {
+    return (
+        `<div class="stat stat-goal">` +
+        `<span class="stat-label">目标进度${helpMarkup(help)}</span>` +
+        `<span class="stat-value">${valueHtml}</span>` +
+        `<span class="stat-sub">${sub}</span></div>`
+    );
+}
+
+/**
+ * 构建"目标进度"格: 随阶段自适应。
+
+ * 未达标(减重期): 展示"已减 X kg"与"进度 X%";
+ * 已进入目标 ±band 区间(维持期/达标): 切换为"偏离 ±X kg"与"已维持 N 天",
+ * 使减到目标后该卡片依旧有效。判定与计算均基于最大窗口均值, 而非单日体重。
+
+ * Args:
+ *     records: 升序记录数组。
+
+ * Returns:
+ *     string: 目标进度格的 HTML。
+ */
+function buildGoalCell(records) {
+    if (profileTarget == null) {
+        return goalCellHtml(
+            "--",
+            "在上方设置目标体重",
+            "设置目标体重与起点日期后, 这里会展示减重进度; 到达目标后自动切换为维持情况。"
+        );
+    }
+
+    const target = profileTarget;
+    const latest = records[records.length - 1];
+    if (!latest) {
+        return goalCellHtml("--", `目标 ${fmtKg(target)}`, "暂无体重记录, 录入后展示进度。");
+    }
+
+    const maxW = currentWindows[currentWindows.length - 1];
+    const key = maxW != null ? `ma_${maxW}` : null;
+    const avgLabel = maxW != null ? `${maxW} 日均值` : "体重";
+    const curAvg = steadyWeight(latest, key);
+    const startAvg = profileTargetStart
+        ? avgAtDate(records, key, profileTargetStart)
+        : steadyWeight(records[0], key);
+
+    const reached = curAvg <= target + TARGET_BAND;
+
+    if (!reached) {
+        // 减重期: 已减 = 起点均值 − 当前均值; 进度 = 已减 / (起点 − 目标)
+        const lost = startAvg - curAvg;
+        const totalToLose = startAvg - target;
+        let progress = totalToLose > 0 ? (lost / totalToLose) * 100 : 0;
+        progress = Math.max(0, Math.min(100, progress));
+        const gained = lost < 0;
+        const mainText = gained
+            ? `已增 ${Math.abs(lost).toFixed(2)} kg`
+            : `已减 ${lost.toFixed(2)} kg`;
+        const color = gained ? "var(--danger)" : "var(--ma7)";
+        const help =
+            `已减 = 起点${avgLabel} 减 当前${avgLabel}; 进度 = 已减 / (起点 减 目标)。\n` +
+            `起点取 ${profileTargetStart || records[0].date} 的${avgLabel} ` +
+            `${startAvg.toFixed(2)} kg, 当前${avgLabel} ${curAvg.toFixed(2)} kg。\n` +
+            `用均值而非单日体重, 避免单日波动误判。`;
+        return goalCellHtml(
+            `<span style="color:${color}">${mainText}</span>`,
+            `进度 ${progress.toFixed(0)}% · 目标 ${fmtKg(target)}`,
+            help
+        );
+    }
+
+    // 维持期/达标: 偏离 = 当前均值 − 目标(可正可负);
+    // 已维持 = 从"最近一段连续 ≤ 目标+band"的起点到最新记录的自然日跨度(按日历天而非记录条数)
+    const dev = curAvg - target;
+    const devText = `偏离 ${dev > 0 ? "+" : ""}${dev.toFixed(2)} kg`;
+    let streakStartDate = latest.date;
+    for (let i = records.length - 1; i >= 0; i--) {
+        if (steadyWeight(records[i], key) <= target + TARGET_BAND) {
+            streakStartDate = records[i].date;
+        } else {
+            break;
+        }
+    }
+    const maintainDays = daysBetween(streakStartDate, latest.date) + 1;
+    const help =
+        `当前${avgLabel} ${curAvg.toFixed(2)} kg 已进入目标 ±${TARGET_BAND} kg 区间, 视为达标。\n` +
+        `偏离 = 当前${avgLabel} 减 目标; 已维持 = 从最近一次进入 目标+${TARGET_BAND} kg 区间起到最新记录的自然天数(按日历计)。`;
+    return goalCellHtml(
+        `<span style="color:var(--ma7)">${devText}</span>`,
+        `已维持 ${maintainDays} 天 · 目标 ${fmtKg(target)}`,
+        help
+    );
+}
+
 /** 渲染顶部统计卡片(随窗口数量动态生成)。 */
 function renderStats(records) {
     const card = document.getElementById("stats-card");
     const latest = records[records.length - 1];
 
-    // 卡片: 最新体重 + 每个窗口的均值 + 较最大窗口的差值
+    // 卡片: 目标进度 + 每个窗口的均值 + 较最大窗口的差值
+    // (最新体重噪声大, 已由"目标进度"与各窗口均值替代, 不再单独展示)
     const cells = [];
-    cells.push({ label: "最新体重", value: latest ? `${latest.weight.toFixed(2)} kg` : "--" });
     currentWindows.forEach((w) => {
         const v = latest ? latest[`ma_${w}`] : null;
         cells.push({
@@ -206,6 +372,7 @@ function renderStats(records) {
     }
 
     card.innerHTML =
+        buildGoalCell(records) +
         cells
             .map(
                 (c) =>
@@ -225,13 +392,17 @@ function showProfileMsg(text, ok) {
     el.className = "profile-msg " + (ok ? "ok" : "err");
 }
 
-/** 拉取个人档案(身高)并刷新展示。 */
+/** 拉取个人档案(身高 + 目标体重)并刷新展示。 */
 async function loadProfile() {
     const res = await fetch(PROFILE_API);
     const json = await res.json();
-    profileHeight = json.data ? json.data.height_cm : null;
+    const data = json.data || {};
+    profileHeight = data.height_cm != null ? data.height_cm : null;
+    profileTarget = data.target_weight != null ? data.target_weight : null;
+    profileTargetStart = data.target_start_date || null;
     renderProfile();
-    // 记录可能已先行加载完成, 此时需重算统计卡以显示 BMI
+    renderTargetProfile();
+    // 记录可能已先行加载完成, 此时需重算统计卡以显示 BMI 与目标进度
     if (lastRecords.length > 0) renderStats(lastRecords);
 }
 
@@ -239,6 +410,14 @@ async function loadProfile() {
 function renderProfile() {
     const el = document.getElementById("profile-height");
     el.textContent = profileHeight != null ? `${profileHeight} cm` : "--";
+}
+
+/** 渲染目标体重的只读展示(目标值 + 起点日期)。 */
+function renderTargetProfile() {
+    const wEl = document.getElementById("target-weight-display");
+    const sEl = document.getElementById("target-start-display");
+    wEl.textContent = profileTarget != null ? fmtKg(profileTarget) : "--";
+    sEl.textContent = profileTargetStart ? `· 起点 ${profileTargetStart.slice(5)}` : "";
 }
 
 /** 进入身高编辑状态(只读视图与编辑表单互斥显示)。 */
@@ -283,6 +462,65 @@ async function submitProfile(e) {
         renderStats(lastRecords);
     } else {
         showProfileMsg(json.message || "保存失败", false);
+    }
+}
+
+/** 显示目标体重编辑区的提示信息。 */
+function showTargetMsg(text, ok) {
+    const el = document.getElementById("target-msg");
+    el.textContent = text;
+    el.className = "profile-msg " + (ok ? "ok" : "err");
+}
+
+/** 进入目标体重编辑状态(只读视图与编辑表单互斥显示)。 */
+function startTargetEdit() {
+    document.getElementById("target-view").hidden = true;
+    document.getElementById("target-edit").hidden = false;
+    const wInput = document.getElementById("target-weight");
+    const sInput = document.getElementById("target-start");
+    wInput.value = profileTarget != null ? profileTarget : "";
+    // 起点默认: 已设置则沿用(避免改目标时误移基线), 否则取今天(即设定目标当天)
+    sInput.value = profileTargetStart || todayStr();
+    wInput.focus();
+    wInput.select();
+}
+
+/** 退出目标体重编辑状态, 恢复只读展示。 */
+function cancelTargetEdit() {
+    document.getElementById("target-edit").hidden = true;
+    document.getElementById("target-view").hidden = false;
+    showTargetMsg("", true);
+}
+
+/** 提交目标体重与起点日期(PUT /api/profile/target), 成功后刷新统计卡。 */
+async function submitTarget(e) {
+    e.preventDefault();
+    const weight = parseFloat(document.getElementById("target-weight").value);
+    const start = document.getElementById("target-start").value;
+    if (!weight || weight <= 0) {
+        showTargetMsg("请输入有效的目标体重", false);
+        return;
+    }
+    if (!start) {
+        showTargetMsg("请选择起点日期", false);
+        return;
+    }
+
+    const res = await fetch(TARGET_API, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_weight: weight, target_start_date: start }),
+    });
+    const json = await res.json();
+    if (json.code === 200) {
+        profileTarget = json.data.target_weight;
+        profileTargetStart = json.data.target_start_date;
+        renderTargetProfile();
+        cancelTargetEdit();
+        // 目标或起点变化会影响进度, 重新渲染统计卡
+        renderStats(lastRecords);
+    } else {
+        showTargetMsg(json.message || "保存失败", false);
     }
 }
 
@@ -881,6 +1119,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("profile-edit-btn").addEventListener("click", startProfileEdit);
     document.getElementById("profile-cancel-btn").addEventListener("click", cancelProfileEdit);
     document.getElementById("profile-edit").addEventListener("submit", submitProfile);
+
+    // 目标体重交互: 默认只读, 点编辑才可改; 起点日期接入自定义日历
+    document.getElementById("target-edit-btn").addEventListener("click", startTargetEdit);
+    document.getElementById("target-cancel-btn").addEventListener("click", cancelTargetEdit);
+    document.getElementById("target-edit").addEventListener("submit", submitTarget);
+    attachDatePicker(document.getElementById("target-start"));
 
     // 放纵记录的初始化与交互见 indulgence.js
     loadProfile();

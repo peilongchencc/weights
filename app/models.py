@@ -126,3 +126,36 @@ class ProfileUpdate(BaseModel):
     """
 
     height_cm: float = Field(..., ge=50, le=300, description="身高(cm), 范围 50-300")
+
+
+class TargetUpdate(BaseModel):
+    """更新目标体重的请求体。
+
+    目标体重与起点日期都是全局档案信息, 与每日记录解耦。起点日期用于在前端
+    定位"起点的移动平均", 据此计算已减重量与减重进度。
+
+    Attributes:
+        target_weight: 目标体重(kg), 必填且需大于 0。
+        target_start_date: 起点日期, 格式 yyyy-mm-dd, 默认为设定目标当天。
+    """
+
+    target_weight: float = Field(
+        ..., gt=0, le=1000, description="目标体重(kg), 必填"
+    )
+    target_start_date: str = Field(..., description="起点日期, 格式 yyyy-mm-dd")
+
+    @field_validator("target_start_date")
+    @classmethod
+    def validate_start_date(cls, value: str) -> str:
+        """校验起点日期格式为 yyyy-mm-dd, 且不晚于今天。
+
+        起点日期用于回溯"起点的均值", 落在未来没有实际意义(也无对应记录),
+        故在格式校验之外再拒绝未来日期, 与前端日历"禁止选择未来日期"保持一致。
+
+        Raises:
+            ValueError: 格式非法或日期晚于今天时抛出。
+        """
+        normalized = _validate_iso_date(value)
+        if date_type.fromisoformat(normalized) > date_type.today():
+            raise ValueError("起点日期不能晚于今天")
+        return normalized

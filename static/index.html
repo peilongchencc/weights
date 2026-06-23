@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>每日体重记录</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
-    <link rel="stylesheet" href="/static/style.css?v=4" />
+    <link rel="stylesheet" href="/static/style.css?v=5" />
 </head>
 <body>
     <main class="container">
@@ -44,6 +44,43 @@
                     <button type="submit" class="profile-btn profile-btn-primary">保存</button>
                     <button type="button" class="profile-btn" id="profile-cancel-btn">取消</button>
                     <span id="profile-msg" class="profile-msg"></span>
+                </form>
+                <div class="profile-view" id="target-view">
+                    <span class="profile-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>
+                    </span>
+                    <span class="profile-label">目标</span>
+                    <span class="profile-value" id="target-weight-display">--</span>
+                    <span class="profile-start" id="target-start-display"></span>
+                    <button type="button" class="profile-btn" id="target-edit-btn">编辑</button>
+                </div>
+                <form class="profile-edit" id="target-edit" hidden>
+                    <span class="profile-label">目标</span>
+                    <span class="profile-input-wrap">
+                        <input
+                            type="number"
+                            id="target-weight"
+                            name="target-weight"
+                            class="profile-input"
+                            step="0.1"
+                            min="0.1"
+                            placeholder="70"
+                        />
+                        <span class="profile-unit">kg</span>
+                    </span>
+                    <span class="profile-label">起点</span>
+                    <input
+                        type="text"
+                        id="target-start"
+                        name="target-start"
+                        class="profile-input date-input target-date-input"
+                        readonly
+                        placeholder="选择日期"
+                        autocomplete="off"
+                    />
+                    <button type="submit" class="profile-btn profile-btn-primary">保存</button>
+                    <button type="button" class="profile-btn" id="target-cancel-btn">取消</button>
+                    <span id="target-msg" class="profile-msg"></span>
                 </form>
                 </div>
             </div>
@@ -179,7 +216,7 @@
     </main>
 
     <script src="/static/datepicker.js?v=3"></script>
-    <script src="/static/app.js?v=3"></script>
+    <script src="/static/app.js?v=5"></script>
     <script src="/static/indulgence.js?v=3"></script>
 </body>
 </html>

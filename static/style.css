@@ -121,6 +121,18 @@ body {
     letter-spacing: 0.2px;
 }
 
+/* 目标胶囊中的起点日期小字(如 "· 起点 06-01") */
+.profile-start {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* 目标编辑态的起点日期输入: 沿用胶囊输入框外观, 略加宽以容纳完整日期 */
+.target-date-input {
+    width: 136px;
+    cursor: pointer;
+}
+
 /* 输入框 + 单位 组合 */
 .profile-input-wrap {
     position: relative;
@@ -337,6 +349,17 @@ body {
     font-size: 12px;
     font-weight: 600;
     vertical-align: middle;
+}
+
+/* 目标进度复合格: 比普通格多一行副信息, 占两列以容纳文案 */
+.stat-goal {
+    grid-column: span 2;
+}
+
+/* 目标进度格的副信息行(进度% / 已维持天数 + 目标值) */
+.stat-sub {
+    font-size: 12px;
+    color: var(--muted);
 }
 
 /* 统计项说明: "?" 按钮 + 悬浮/点击展开的浮层 */

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 from loguru import logger
 
 from app import profile_crud
-from app.models import ProfileUpdate
+from app.models import ProfileUpdate, TargetUpdate
 from app.request_context import get_request_id
 
 router = APIRouter(prefix="/api", tags=["profile"])
@@ -60,4 +60,37 @@ async def update_profile(
         "message": "身高保存成功",
         "request_id": request_id,
         "data": profile,
+    }
+
+
+@router.put("/profile/target")
+async def update_target(
+    payload: TargetUpdate,
+    request_id: str = Depends(get_request_id),
+) -> dict:
+    """更新目标体重与起点日期。
+
+    Args:
+        payload: 包含 target_weight 与 target_start_date 的请求体。
+        request_id: 由依赖项注入的请求唯一标识。
+
+    Returns:
+        统一响应结构, data 中返回写入后的目标信息。
+    """
+    logger.info(
+        "[{}] 更新目标体重 target_weight={} start_date={}",
+        request_id,
+        payload.target_weight,
+        payload.target_start_date,
+    )
+
+    target = await profile_crud.upsert_target(
+        payload.target_weight, payload.target_start_date
+    )
+
+    return {
+        "code": 200,
+        "message": "目标体重保存成功",
+        "request_id": request_id,
+        "data": target,
     }
