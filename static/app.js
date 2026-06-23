@@ -211,6 +211,27 @@ function daysBetween(fromDate, toDate) {
     return Math.round((b - a) / 86400000);
 }
 
+/**
+ * 将 yyyy-mm-dd 日期按自然日偏移指定天数。
+ *
+ * 用于定位"上一期"的日期(例如 maxW 天前), 配合 avgAtDate 取上期均值做周环比。
+ *
+ * Args:
+ *     date: 基准日期字符串 yyyy-mm-dd。
+ *     deltaDays: 偏移天数, 负值表示往前。
+ *
+ * Returns:
+ *     string: 偏移后的日期字符串 yyyy-mm-dd。
+ */
+function shiftDate(date, deltaDays) {
+    const d = new Date(`${date}T00:00:00`);
+    d.setDate(d.getDate() + deltaDays);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
 /** 生成统计卡中"目标进度"复合格(三行: 标签 / 主数值 / 副信息)的 HTML。 */
 function goalCellHtml(valueHtml, sub, help) {
     return (
@@ -310,7 +331,7 @@ function renderStats(records) {
     const card = document.getElementById("stats-card");
     const latest = records[records.length - 1];
 
-    // 卡片: 目标进度 + 每个窗口的均值 + 较最大窗口的差值
+    // 卡片: 目标进度 + 每个窗口的均值 + 最大窗口均值的周环比(较上一期同窗口均值)
     // (最新体重噪声大, 已由"目标进度"与各窗口均值替代, 不再单独展示)
     const cells = [];
     currentWindows.forEach((w) => {
@@ -325,29 +346,41 @@ function renderStats(records) {
         });
     });
 
-    // 差值: 今日体重 较 "不含今日的前 N 条记录均值"(N 取最大窗口)
+    // 周环比: 当前 N 日均值 较 "N 天前的 N 日均值"(N 取最大窗口); 两边均为均值, 不受单日噪声影响
     const maxWindow = currentWindows[currentWindows.length - 1];
     let diffColor = "";
     let diffText = "--";
     if (latest && maxWindow != null) {
-        // 取最新记录之前的最多 N 条记录(不含今日); 不足 N 条时按已有前序记录计算
-        const start = Math.max(0, records.length - 1 - maxWindow);
-        const prev = records.slice(start, records.length - 1);
-        if (prev.length > 0) {
-            const base = prev.reduce((sum, r) => sum + r.weight, 0) / prev.length;
-            const diff = latest.weight - base;
+        const key = `ma_${maxWindow}`;
+        // 上一期日期 = 最新日期往前 maxWindow 个自然日
+        const prevDate = shiftDate(latest.date, -maxWindow);
+        // 仅当存在不晚于上一期日期的更早记录时才对比, 否则视为上期数据不足, 显示 --
+        const hasPrev = records.some((r) => r !== latest && r.date <= prevDate);
+        if (hasPrev) {
+            const curAvg = steadyWeight(latest, key);
+            // avgAtDate 天然处理缺记: 回退到该日期前最近一条记录的均值
+            const prevAvg = avgAtDate(records, key, prevDate);
+            const diff = curAvg - prevAvg;
             const sign = diff > 0 ? "+" : "";
             diffText = `${sign}${diff.toFixed(2)} kg`;
             diffColor = diff > 0 ? "var(--danger)" : "var(--ma7)";
         }
     }
-    const diffLabel = maxWindow != null ? `较前 ${maxWindow} 日均值` : "较前期均值";
+    // 偏移天数等于窗口大小; 默认 7 时"上周"严格成立, 其它窗口回退为通用表述
+    const diffLabel =
+        maxWindow == null
+            ? "较上期均值"
+            : maxWindow === 7
+              ? "较上周 7 日均值"
+              : `较上一 ${maxWindow} 日均值`;
     const helpText =
         maxWindow != null
-            ? `今日体重 减去 “不含今日的前 ${maxWindow} 条记录” 的平均值。\n` +
-              `正值(红色)表示高于近期基线, 负值(绿色)表示低于近期基线。\n` +
-              `注: 前序记录不足 ${maxWindow} 条时, 按已有的全部前序记录计算。`
-            : "今日体重相较此前记录均值的变化。";
+            ? `当前 ${maxWindow} 日均值 减去 ${maxWindow} 天前的 ${maxWindow} 日均值。\n` +
+              `两边均为均值(非单日体重), 按日历日定位上期, 缺记时取该日前最近一条记录的均值。\n` +
+              `正值(红色)表示较上期变重, 负值(绿色)表示较上期变轻。\n` +
+              `注: 记录不足约两周时, 上期均值按当时已有记录计算(窗口可能不满, 早期偏噪声);\n` +
+              `完全缺少早于上期日期的记录(约不足一周)时显示 --。`
+            : "当前均值相较上一期均值的变化。";
 
     // BMI 卡片: 仅在已设置身高且有最新体重时展示
     if (profileHeight != null && latest) {
