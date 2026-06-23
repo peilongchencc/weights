@@ -172,10 +172,10 @@ function bmiCategory(bmi) {
 function bmiNavSub(bmi, heightM) {
     const h2 = heightM * heightM;
     if (bmi >= 28) {
-        return `还需减 ${((bmi - 28) * h2).toFixed(1)} kg 进入「超重」(BMI 28.0)`;
+        return `还需减 ${((bmi - 27.9) * h2).toFixed(1)} kg 进入「超重」(BMI 27.9)`;
     }
     if (bmi >= 24) {
-        return `还需减 ${((bmi - 24) * h2).toFixed(1)} kg 进入「正常」(BMI 24.0)`;
+        return `还需减 ${((bmi - 23.9) * h2).toFixed(1)} kg 进入「正常」(BMI 23.9)`;
     }
     if (bmi >= 18.5) {
         return `已在健康区间 ✅ 距「超重」还有 ${((24 - bmi) * h2).toFixed(1)} kg`;
