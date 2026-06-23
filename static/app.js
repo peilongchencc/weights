@@ -747,7 +747,8 @@ function escapeAttr(str) {
 /** 渲染图例(体重 + 各窗口均值)。 */
 function renderLegend() {
     const legend = document.getElementById("chart-legend");
-    const items = [`<span class="legend-item"><i class="dot" style="background:${WEIGHT_COLOR}"></i>体重</span>`];
+    // 体重作弱化的背景参考, 图例圆点同步降低透明度, 与趋势图中的主次一致
+    const items = [`<span class="legend-item"><i class="dot" style="background:${WEIGHT_COLOR};opacity:0.35"></i>体重</span>`];
     currentWindows.forEach((w, i) => {
         items.push(
             `<span class="legend-item"><i class="dot" style="background:${maColor(i)}"></i>${w} 日均值</span>`
@@ -834,18 +835,29 @@ function renderChart(records) {
     const x = (i) => pad.left + (n === 1 ? innerW / 2 : (innerW * i) / (n - 1));
     const y = (v) => pad.top + innerH - ((v - min) / (max - min)) * innerH;
 
-    const line = (key, color) => {
+    // 绘制单条折线; width/opacity 用于区分主次:
+    // 单日体重噪声大, 作弱化的背景参考(细线 + 半透明); 均值是关注重点, 用更粗的实线突出。
+    const line = (key, color, width = 2, opacity = 1) => {
         const pts = records
             .map((r, i) => `${x(i)},${y(r[key])}`)
             .join(" ");
-        return `<polyline fill="none" stroke="${color}" stroke-width="2"
+        return `<polyline fill="none" stroke="${color}" stroke-width="${width}" opacity="${opacity}"
             points="${pts}" stroke-linejoin="round" stroke-linecap="round" />`;
     };
 
+    // 最大窗口(最稳健的均值)对应的索引, 用于在多窗口时只强化这一条曲线
+    const maxMaIndex = currentWindows.length - 1;
+
     // 各曲线序列(体重 + 各窗口均值), 用于静态数据点、高亮点与提示内容
+    // dotR/dotOpacity 同样弱化体重点、保留均值点, 与折线的主次保持一致
     const series = [
-        { key: "weight", color: WEIGHT_COLOR },
-        ...currentWindows.map((w, i) => ({ key: `ma_${w}`, color: maColor(i) })),
+        { key: "weight", color: WEIGHT_COLOR, dotR: 2, dotOpacity: 0.3 },
+        ...currentWindows.map((w, i) => ({
+            key: `ma_${w}`,
+            color: maColor(i),
+            dotR: 3,
+            dotOpacity: 1,
+        })),
     ];
 
     // 静态数据点: 所有序列都画小圆点, 仅在该点有值时绘制
@@ -854,7 +866,7 @@ function renderChart(records) {
             records
                 .map((r, i) =>
                     r[s.key] != null
-                        ? `<circle cx="${x(i)}" cy="${y(r[s.key])}" r="3" fill="${s.color}" />`
+                        ? `<circle cx="${x(i)}" cy="${y(r[s.key])}" r="${s.dotR}" fill="${s.color}" opacity="${s.dotOpacity}" />`
                         : ""
                 )
                 .join("")
@@ -909,9 +921,9 @@ function renderChart(records) {
         }
     });
 
-    // 移动平均曲线(按窗口顺序), 体重曲线绘制在最上层
+    // 移动平均曲线(按窗口顺序): 最大窗口(最稳健)加粗到 2.8 作为视觉主角, 其余维持 2
     const maLines = currentWindows
-        .map((w, i) => line(`ma_${w}`, maColor(i)))
+        .map((w, i) => line(`ma_${w}`, maColor(i), i === maxMaIndex ? 2.8 : 2))
         .join("");
 
     // 放纵日标记: 在有体重记录的放纵日画竖向参考线(背景层)与顶部 emoji(前景层),
@@ -942,8 +954,8 @@ function renderChart(records) {
             ${grid}
             ${indulgeLines}
             ${guide}
+            ${line("weight", WEIGHT_COLOR, 1.5, 0.35)}
             ${maLines}
-            ${line("weight", WEIGHT_COLOR)}
             ${dots}
             ${indulgeMarks}
             ${activeDots}
