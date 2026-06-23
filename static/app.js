@@ -762,6 +762,34 @@ function renderLegend() {
     legend.innerHTML = items.join("");
 }
 
+/**
+ * 计算「整齐」的刻度步长(取 1/2/5 × 10ⁿ 形式)。
+ *
+ * Args:
+ *     value: 期望步长的参考值(通常为 数据跨度 / 刻度数)。
+ *     round: 为 true 时取最接近的整齐值, 为 false 时向上取整。
+ *
+ * Returns:
+ *     便于阅读的步长, 使刻度落在整齐数值上。
+ */
+function niceNum(value, round) {
+    const exp = Math.floor(Math.log10(value));
+    const frac = value / Math.pow(10, exp);
+    let niceFrac;
+    if (round) {
+        if (frac < 1.5) niceFrac = 1;
+        else if (frac < 3) niceFrac = 2;
+        else if (frac < 7) niceFrac = 5;
+        else niceFrac = 10;
+    } else {
+        if (frac <= 1) niceFrac = 1;
+        else if (frac <= 2) niceFrac = 2;
+        else if (frac <= 5) niceFrac = 5;
+        else niceFrac = 10;
+    }
+    return niceFrac * Math.pow(10, exp);
+}
+
 /** 用内联 SVG 绘制体重与移动平均折线图。 */
 function renderChart(records) {
     renderLegend();
@@ -793,6 +821,14 @@ function renderChart(records) {
     const range = max - min;
     min -= range * 0.1;
     max += range * 0.1;
+
+    // 将坐标轴对齐到「整齐」的刻度步长(如 0.1/0.2/0.5/1...), 使刻度标签与网格线
+    // 所在位置完全一致, 避免因 toFixed 四舍五入造成「数据点偏离刻度线」的错觉。
+    // ticks 取较大值, 让常见的体重跨度(数 kg)落到 0.5 这类更细的步长上。
+    const ticks = 6;
+    const niceStep = niceNum((max - min) / ticks, true);
+    min = Math.floor(min / niceStep) * niceStep;
+    max = Math.ceil(max / niceStep) * niceStep;
 
     const n = records.length;
     const x = (i) => pad.left + (n === 1 ? innerW / 2 : (innerW * i) / (n - 1));
@@ -851,16 +887,16 @@ function renderChart(records) {
         `<line class="chart-guide" y1="${pad.top}" y2="${pad.top + innerH}"` +
         ` stroke="#cbd2e0" stroke-width="1" stroke-dasharray="4 3" visibility="hidden" />`;
 
-    // y 轴网格与刻度
-    const ticks = 4;
+    // y 轴网格与刻度: 按整齐步长从 min 画到 max, 标签精度跟随步长自适应,
+    // 保证「标签数值 === 网格线实际位置」。
+    const tickDecimals = niceStep < 1 ? 1 : 0;
     let grid = "";
-    for (let t = 0; t <= ticks; t++) {
-        const val = min + ((max - min) * t) / ticks;
+    for (let val = min; val <= max + 1e-9; val += niceStep) {
         const yy = y(val);
         grid += `<line x1="${pad.left}" y1="${yy}" x2="${W - pad.right}" y2="${yy}"
             stroke="#eef1f6" stroke-width="1" />
             <text x="${pad.left - 8}" y="${yy + 4}" text-anchor="end"
-            font-size="11" fill="#9ca3af">${val.toFixed(1)}</text>`;
+            font-size="11" fill="#9ca3af">${val.toFixed(tickDecimals)}</text>`;
     }
 
     // x 轴日期(最多显示约 8 个, 避免拥挤)
