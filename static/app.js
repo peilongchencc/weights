@@ -455,12 +455,20 @@ function renderTargetProfile() {
     const wEl = document.getElementById("target-weight-display");
     const sEl = document.getElementById("target-start-display");
     wEl.textContent = profileTarget != null ? fmtKg(profileTarget) : "--";
-    sEl.textContent = profileTargetStart ? `· 起点 ${profileTargetStart.slice(5)}` : "";
+    sEl.textContent = profileTargetStart ? `· 起点 ${profileTargetStart}` : "";
 }
 
-/** 进入身高编辑状态(只读视图与编辑表单互斥显示)。 */
+/** 关闭身高与目标两个编辑浮层并清空各自提示。 */
+function closeProfilePops() {
+    document.getElementById("profile-edit").hidden = true;
+    document.getElementById("target-edit").hidden = true;
+    showProfileMsg("", true);
+    showTargetMsg("", true);
+}
+
+/** 打开身高编辑浮层(只读胶囊保持可见, 浮层从其下方弹出)。 */
 function startProfileEdit() {
-    document.getElementById("profile-view").hidden = true;
+    closeProfilePops();
     document.getElementById("profile-edit").hidden = false;
     const input = document.getElementById("height");
     // 未设置过身高时预填默认值, 避免步进器从 min(50) 起步
@@ -469,10 +477,9 @@ function startProfileEdit() {
     input.select();
 }
 
-/** 退出身高编辑状态, 恢复只读展示。 */
+/** 关闭身高编辑浮层。 */
 function cancelProfileEdit() {
     document.getElementById("profile-edit").hidden = true;
-    document.getElementById("profile-view").hidden = false;
     showProfileMsg("", true);
 }
 
@@ -510,9 +517,9 @@ function showTargetMsg(text, ok) {
     el.className = "profile-msg " + (ok ? "ok" : "err");
 }
 
-/** 进入目标体重编辑状态(只读视图与编辑表单互斥显示)。 */
+/** 打开目标编辑浮层(只读胶囊保持可见, 浮层从其下方弹出)。 */
 function startTargetEdit() {
-    document.getElementById("target-view").hidden = true;
+    closeProfilePops();
     document.getElementById("target-edit").hidden = false;
     const wInput = document.getElementById("target-weight");
     const sInput = document.getElementById("target-start");
@@ -523,10 +530,9 @@ function startTargetEdit() {
     wInput.select();
 }
 
-/** 退出目标体重编辑状态, 恢复只读展示。 */
+/** 关闭目标编辑浮层。 */
 function cancelTargetEdit() {
     document.getElementById("target-edit").hidden = true;
-    document.getElementById("target-view").hidden = false;
     showTargetMsg("", true);
 }
 
@@ -1163,6 +1169,18 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("target-cancel-btn").addEventListener("click", cancelTargetEdit);
     document.getElementById("target-edit").addEventListener("submit", submitTarget);
     attachDatePicker(document.getElementById("target-start"));
+
+    // 点击浮层/日历/编辑按钮以外的区域时, 关闭打开的编辑浮层
+    document.addEventListener("mousedown", (e) => {
+        if (e.target.closest(".profile-pop")) return;
+        if (e.target.closest(".dp-popup")) return;
+        if (e.target.closest("#profile-edit-btn, #target-edit-btn")) return;
+        closeProfilePops();
+    });
+    // Esc 关闭编辑浮层
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeProfilePops();
+    });
 
     // 放纵记录的初始化与交互见 indulgence.js
     loadProfile();

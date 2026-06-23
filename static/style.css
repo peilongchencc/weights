@@ -77,14 +77,20 @@ body {
     margin-bottom: 0;
 }
 
-/* 个人档案(身高): 录入卡顶部的胶囊信息条 */
+/* 个人档案: 录入卡顶部的胶囊信息条 */
 .profile-bar {
-    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-/* 只读态与编辑态共用的胶囊外观 */
-.profile-view,
-.profile-edit {
+/* 单个档案项: 只读胶囊 + 其编辑浮层的定位锚点 */
+.profile-item {
+    position: relative;
+}
+
+/* 只读态胶囊 */
+.profile-view {
     display: inline-flex;
     align-items: center;
     gap: 10px;
@@ -92,11 +98,6 @@ body {
     background: #f5f7ff;
     border: 1px solid var(--border);
     border-radius: 999px;
-}
-
-.profile-edit {
-    flex-wrap: wrap;
-    border-color: var(--primary);
 }
 
 .profile-icon {
@@ -121,32 +122,78 @@ body {
     letter-spacing: 0.2px;
 }
 
-/* 目标胶囊中的起点日期小字(如 "· 起点 06-01") */
+/* 目标胶囊中的起点日期小字(如 "· 起点 2026-06-01") */
 .profile-start {
     font-size: 12px;
     color: var(--muted);
 }
 
-/* 目标编辑态的起点日期输入: 沿用胶囊输入框外观, 略加宽以容纳完整日期 */
-.target-date-input {
-    width: 136px;
-    cursor: pointer;
+/* 编辑浮层: 从胶囊下方弹出的独立面板, 字段纵向排列, 不再挤在胶囊里 */
+.profile-pop {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 1000;
+    width: 248px;
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(31, 41, 55, 0.16);
+    animation: dp-pop 0.14s ease-out;
+}
+
+/* 靠右侧的档案项(如"目标"): 浮层右对齐, 避免溢出卡片右缘 */
+.profile-pop--right {
+    left: auto;
+    right: 0;
+}
+
+.profile-pop-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 14px;
+}
+
+/* 浮层内的单个字段: 标签在上, 输入框在下, 整行铺满 */
+.profile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.profile-field-label {
+    font-size: 12px;
+    color: var(--muted);
 }
 
 /* 输入框 + 单位 组合 */
 .profile-input-wrap {
     position: relative;
-    display: inline-flex;
-    align-items: center;
+    display: block;
 }
 
 .profile-input {
-    width: 96px;
-    padding: 6px 32px 6px 12px;
+    width: 100%;
+    padding: 9px 38px 9px 12px;
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: 10px;
     font-size: 14px;
     background: #fff;
+}
+
+/* 隐藏数字输入框的原生步进箭头: 避免与右侧单位文字(cm/kg)重叠 */
+.profile-input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.profile-input::-webkit-outer-spin-button,
+.profile-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .profile-input:focus {
@@ -157,23 +204,39 @@ body {
 
 .profile-unit {
     position: absolute;
-    right: 12px;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
     font-size: 12px;
     color: var(--muted);
     pointer-events: none;
 }
 
-/* 胶囊内的小圆角按钮: 编辑 / 保存 / 取消 */
+/* 浮层底部操作区: 提示信息靠左, 取消/保存按钮靠右 */
+.profile-pop-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
 .profile-btn {
-    padding: 5px 14px;
+    padding: 6px 16px;
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: 8px;
     background: #fff;
     color: var(--primary);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+/* 只读胶囊里的"编辑"按钮仍保持小圆角胶囊外观 */
+.profile-view .profile-btn {
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 12px;
 }
 
 .profile-btn:hover {
@@ -194,8 +257,9 @@ body {
 }
 
 .profile-msg {
+    flex: 1;
     font-size: 12px;
-    padding-right: 4px;
+    min-height: 16px;
 }
 
 .profile-msg.ok {
