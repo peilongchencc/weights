@@ -155,6 +155,35 @@ function bmiCategory(bmi) {
 }
 
 /**
+ * 生成 BMI 的"单边界导航"副行: 按当前所处区间与减重方向, 只指向下一个最近的健康分界, 并以 kg 为主、BMI 为辅给出可执行的差距。
+
+ * 设计原则:
+ *   1. 方向感知: 减重者只关心"下方"最近一档(肥胖→先脱离肥胖, 超重→进正常), 不一次性罗列全部边界, 避免目标过远带来的挫败感。
+ *   2. 以 kg 为主: 体重差比 BMI 点数更有体感、更可执行。换算: Δ体重 = ΔBMI × 身高(m)²。
+ *   3. 正常区给正反馈并附"距超重缓冲"; 偏瘦区方向反转为"需增重"。
+
+ * Args:
+ *     bmi: 当前 BMI 数值。
+ *     heightM: 身高(米)。
+
+ * Returns:
+ *     string: 副行 HTML 文本。
+ */
+function bmiNavSub(bmi, heightM) {
+    const h2 = heightM * heightM;
+    if (bmi >= 28) {
+        return `还需减 ${((bmi - 28) * h2).toFixed(1)} kg 进入「超重」(BMI 28.0)`;
+    }
+    if (bmi >= 24) {
+        return `还需减 ${((bmi - 24) * h2).toFixed(1)} kg 进入「正常」(BMI 24.0)`;
+    }
+    if (bmi >= 18.5) {
+        return `已在健康区间 ✅ 距「超重」还有 ${((24 - bmi) * h2).toFixed(1)} kg`;
+    }
+    return `还需增 ${((18.5 - bmi) * h2).toFixed(1)} kg 进入「正常」(BMI 18.5)`;
+}
+
+/**
  * 取某条记录的"最大窗口均值"作为该日的稳健体重值; 无均值时回退到当日体重。
 
  * Args:
@@ -398,6 +427,7 @@ function renderStats(records) {
                 `${bmi.toFixed(1)}` +
                 `<span class="stat-tag" style="color:${color}">${category}</span>`,
             color,
+            sub: bmiNavSub(bmi, m),
             helpHtml:
                 `身体质量指数 = 体重(kg) / 身高(m)²。<br>` +
                 `当前以${bmiAvgLabel} ${bmiWeight.toFixed(2)} kg 与身高 ${profileHeight} cm 计算。<br>` +
@@ -417,7 +447,9 @@ function renderStats(records) {
             .map(
                 (c) =>
                     `<div class="stat"><span class="stat-label">${c.label}${helpMarkup(c.helpHtml || c.help, !!c.helpHtml)}</span>` +
-                    `<span class="stat-value"${c.color ? ` style="color:${c.color}"` : ""}>${c.value}</span></div>`
+                    `<span class="stat-value"${c.color ? ` style="color:${c.color}"` : ""}>${c.value}</span>` +
+                    (c.sub ? `<span class="stat-sub stat-sub-nav">${c.sub}</span>` : "") +
+                    `</div>`
             )
             .join("") +
         buildGoalCell(records);

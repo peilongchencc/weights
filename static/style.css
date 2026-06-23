@@ -427,6 +427,12 @@ body {
     white-space: nowrap;
 }
 
+/* BMI 单边界导航副行: 文案较长, 允许在本列内换行, 避免 nowrap 溢出与相邻格重叠 */
+.stat-sub-nav {
+    white-space: normal;
+    line-height: 1.35;
+}
+
 /* 统计项说明: "?" 按钮 + 悬浮/点击展开的浮层 */
 .stat-label {
     display: inline-flex;
