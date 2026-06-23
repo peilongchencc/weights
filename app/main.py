@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     logger.info("服务关闭")
 
 
-app = FastAPI(title="每日体重记录", lifespan=lifespan)
+app = FastAPI(title="Trend Weight", lifespan=lifespan)
 app.add_middleware(RequestIDMiddleware)
 register_exception_handler(app)
 app.include_router(records.router)

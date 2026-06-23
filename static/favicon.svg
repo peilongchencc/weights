@@ -1,20 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
+    <!-- background gradient (brand colors) -->
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#5a78ff"/>
       <stop offset="1" stop-color="#3c55d6"/>
     </linearGradient>
+    <!-- soft area fill under the trend line -->
+    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <!-- subtle top sheen for depth -->
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
-  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#bg)"/>
+
+  <!-- rounded card background -->
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#sheen)"/>
+
+  <!-- baseline -->
+  <line x1="12" y1="50" x2="52" y2="50" stroke="#ffffff" stroke-opacity="0.35"
+        stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- area fill following the downward trend -->
+  <path d="M12 22 L24 32 L34 28 L52 42 L52 50 L12 50 Z" fill="url(#area)"/>
+
   <!-- downward trend line: weight management -->
-  <polyline points="12,22 24,32 34,28 52,44"
+  <polyline points="12,22 24,32 34,28 52,42"
             fill="none" stroke="#ffffff" stroke-width="4"
             stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="12" cy="22" r="3.4" fill="#ffffff"/>
-  <circle cx="24" cy="32" r="3.4" fill="#ffffff"/>
-  <circle cx="34" cy="28" r="3.4" fill="#ffffff"/>
-  <circle cx="52" cy="44" r="3.4" fill="#10b981"/>
-  <!-- baseline -->
-  <line x1="12" y1="52" x2="52" y2="52" stroke="#ffffff" stroke-opacity="0.45"
-        stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- data points -->
+  <circle cx="12" cy="22" r="3.2" fill="#ffffff"/>
+  <circle cx="24" cy="32" r="3.2" fill="#ffffff"/>
+  <circle cx="34" cy="28" r="3.2" fill="#ffffff"/>
+
+  <!-- goal marker: reaching the target (green, with ring) -->
+  <circle cx="52" cy="42" r="6.4" fill="#10b981" fill-opacity="0.28"/>
+  <circle cx="52" cy="42" r="4" fill="#10b981" stroke="#ffffff" stroke-width="1.6"/>
 </svg>
