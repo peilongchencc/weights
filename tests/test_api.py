@@ -17,6 +17,7 @@ def test_create_and_get(client):
     resp = client.get("/api/records")
     data = resp.json()["data"]
     assert data["windows"] == [3, 7]
+    assert data["target_band"] == 1.0
     assert len(data["records"]) == 1
     record = data["records"][0]
     assert record["ma_3"] == 90.5

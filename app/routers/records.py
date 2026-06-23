@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from loguru import logger
 
 from app import crud
-from app.config import MA_WINDOWS
+from app.config import MA_WINDOWS, TARGET_BAND
 from app.models import WeightCreate
 from app.moving_average import attach_moving_averages
 from app.request_context import get_request_id
@@ -69,6 +69,7 @@ async def get_records(request_id: str = Depends(get_request_id)) -> dict:
         "request_id": request_id,
         "data": {
             "windows": MA_WINDOWS,
+            "target_band": TARGET_BAND,
             "records": enhanced,
         },
     }

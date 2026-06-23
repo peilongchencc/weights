@@ -35,5 +35,7 @@ PORT: int = int(os.getenv("PORT", "8421"))
 DB_PATH: Path = BASE_DIR / os.getenv("DB_PATH", "weights.db")
 LOG_PATH: Path = BASE_DIR / os.getenv("LOG_PATH", "logs/app.log")
 MA_WINDOWS: list[int] = _parse_windows(os.getenv("MA_WINDOWS", "3,7"))
+# 达标/维持判定的区间半宽(kg): 最大窗口均值进入 [目标-band, 目标+band] 即视为达标。
+TARGET_BAND: float = float(os.getenv("TARGET_BAND", "1.0"))
 # 是否开启热重载。开发可设为 true; 后台运行建议保持 false 以确保单进程, 便于 kill。
 RELOAD: bool = os.getenv("RELOAD", "false").lower() in ("1", "true", "yes")

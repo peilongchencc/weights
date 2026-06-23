@@ -14,7 +14,8 @@ let profileTarget = null;
 let profileTargetStart = null;
 // 达标/维持判定的区间半宽(kg): 最大窗口均值进入 [目标-band, 目标+band] 即视为达标,
 // 之后统计卡从"减重进度"切换为"维持情况", 使目标达成后该卡片仍有效。
-const TARGET_BAND = 1.0;
+// 由后端 .env(TARGET_BAND) 经 /api/records 下发; 此处仅作请求前的默认兜底值。
+let TARGET_BAND = 1.0;
 
 // 每页最多展示的记录条数
 const PAGE_SIZE = 30;
@@ -47,11 +48,9 @@ function maColor(index) {
     return MA_PALETTE[index % MA_PALETTE.length];
 }
 
-/** 格式化目标体重为 "70 kg" / "70.5 kg"(整数不带多余小数)。 */
+/** 格式化目标体重为 "70.00 kg"(统一保留两位小数, 与其他体重展示一致)。 */
 function fmtKg(value) {
-    const n = Number(value);
-    const text = Number.isInteger(n) ? String(n) : n.toFixed(1);
-    return `${text} kg`;
+    return `${Number(value).toFixed(2)} kg`;
 }
 
 /** 返回本地时区今天的 yyyy-mm-dd 字符串。 */
@@ -128,9 +127,10 @@ function updateFormState() {
 async function loadRecords() {
     const res = await fetch(API);
     const json = await res.json();
-    const { records, windows } = json.data;
+    const { records, windows, target_band } = json.data;
     lastRecords = records;
     currentWindows = windows || [];
+    if (target_band != null) TARGET_BAND = target_band;
     renderStats(records);
     renderTable(records);
     renderChart(records);
@@ -277,7 +277,7 @@ function buildGoalCell(records) {
             `用均值而非单日体重, 避免单日波动误判。`;
         return goalCellHtml(
             `<span style="color:${color}">${mainText}</span>`,
-            `进度 ${progress.toFixed(0)}% · 目标 ${fmtKg(target)}`,
+            `进度 ${progress.toFixed(2)}% · 目标 ${fmtKg(target)}`,
             help
         );
     }
@@ -352,7 +352,12 @@ function renderStats(records) {
     // BMI 卡片: 仅在已设置身高且有最新体重时展示
     if (profileHeight != null && latest) {
         const m = profileHeight / 100;
-        const bmi = latest.weight / (m * m);
+        // 用最大窗口均值(默认 7 日均值)而非单日体重计算, 避免单日称重噪声影响 BMI;
+        // 记录不足或无窗口时, steadyWeight 自动回退到最新单日体重。
+        const bmiKey = maxWindow != null ? `ma_${maxWindow}` : null;
+        const bmiWeight = steadyWeight(latest, bmiKey);
+        const bmiAvgLabel = maxWindow != null ? `${maxWindow} 日均值` : "最新体重";
+        const bmi = bmiWeight / (m * m);
         const { color, category } = bmiCategory(bmi);
         cells.push({
             label: "BMI",
@@ -362,7 +367,7 @@ function renderStats(records) {
             color,
             helpHtml:
                 `身体质量指数 = 体重(kg) / 身高(m)²。<br>` +
-                `当前以最新体重 ${latest.weight.toFixed(2)} kg 与身高 ${profileHeight} cm 计算。<br>` +
+                `当前以${bmiAvgLabel} ${bmiWeight.toFixed(2)} kg 与身高 ${profileHeight} cm 计算。<br>` +
                 `参考(中国成人):<br>` +
                 `<span style="color:#38bdf8">● 偏瘦 &lt;18.5</span><br>` +
                 `<span style="color:var(--ma7)">● 正常 18.5-23.9</span><br>` +
