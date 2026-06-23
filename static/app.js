@@ -439,7 +439,9 @@ function renderStats(records) {
         });
     }
 
-    card.innerHTML =
+    // 各统计格放在内部网格 .stats-grid 中; 脚注作为网格外的兄弟节点,
+    // 避免横跨整行的元素占满 auto-fit 轨道、阻止空轨道折叠而挤窄各列。
+    const grid =
         `<div class="stat">` +
         `<span class="stat-label">${diffLabel}${helpMarkup(helpText)}</span>` +
         `<span class="stat-value" style="color:${diffColor}">${diffText}</span></div>` +
@@ -453,6 +455,11 @@ function renderStats(records) {
             )
             .join("") +
         buildGoalCell(records);
+
+    card.innerHTML =
+        `<div class="stats-grid">${grid}</div>` +
+        // 卡片底部脚注: 左对齐, 点题"关注趋势而非单日波动"的设计理念
+        `<p class="stat-note">短期波动是情绪发动机，要关注的是趋势、趋势，还是趋势。</p>`;
 }
 
 /** 显示个人档案区的提示信息。 */

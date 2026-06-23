@@ -383,8 +383,8 @@ body {
     color: var(--danger);
 }
 
-/* 统计卡(列数随窗口数量自适应) */
-.stats-card {
+/* 统计卡内部网格(列数随窗口数量自适应); 脚注放在网格外, 不参与 auto-fit 轨道 */
+.stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
     gap: 16px;
@@ -431,6 +431,17 @@ body {
 .stat-sub-nav {
     white-space: normal;
     line-height: 1.35;
+}
+
+/* 卡片底部脚注: 左对齐, 与上方数据用细分隔线隔开, 弱化为"脚注"而非数据 */
+.stat-note {
+    margin: 16px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    text-align: left;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
 }
 
 /* 统计项说明: "?" 按钮 + 悬浮/点击展开的浮层 */
