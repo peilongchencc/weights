@@ -351,15 +351,16 @@ body {
     vertical-align: middle;
 }
 
-/* 目标进度复合格: 比普通格多一行副信息, 占两列以容纳文案 */
+/* 目标进度复合格: 比普通格多一行副信息, 与其它格同占一列, 保证各格间隔均匀 */
 .stat-goal {
-    grid-column: span 2;
+    grid-column: span 1;
 }
 
 /* 目标进度格的副信息行(进度% / 已维持天数 + 目标值) */
 .stat-sub {
     font-size: 12px;
     color: var(--muted);
+    white-space: nowrap;
 }
 
 /* 统计项说明: "?" 按钮 + 悬浮/点击展开的浮层 */

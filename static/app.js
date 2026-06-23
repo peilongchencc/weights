@@ -410,7 +410,9 @@ function renderStats(records) {
     }
 
     card.innerHTML =
-        buildGoalCell(records) +
+        `<div class="stat">` +
+        `<span class="stat-label">${diffLabel}${helpMarkup(helpText)}</span>` +
+        `<span class="stat-value" style="color:${diffColor}">${diffText}</span></div>` +
         cells
             .map(
                 (c) =>
@@ -418,9 +420,7 @@ function renderStats(records) {
                     `<span class="stat-value"${c.color ? ` style="color:${c.color}"` : ""}>${c.value}</span></div>`
             )
             .join("") +
-        `<div class="stat">` +
-        `<span class="stat-label">${diffLabel}${helpMarkup(helpText)}</span>` +
-        `<span class="stat-value" style="color:${diffColor}">${diffText}</span></div>`;
+        buildGoalCell(records);
 }
 
 /** 显示个人档案区的提示信息。 */
