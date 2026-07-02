@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trend Weight</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
-    <link rel="stylesheet" href="/static/style.css?v=11" />
+    <link rel="stylesheet" href="/static/style.css?v=12" />
 </head>
 <body>
     <main class="container">
@@ -207,7 +207,10 @@
         </section>
 
         <section class="card chart-card">
-            <h2>趋势图</h2>
+            <div class="chart-head">
+                <h2>趋势图</h2>
+                <p class="subtitle-inline">如果某天只有放纵记录，没有称重记录，则放纵标记会就近吸附到下一个称重日——正好能看到放纵后第一次称重时体重是否抬头。</p>
+            </div>
             <div id="chart" class="chart"></div>
             <div class="legend" id="chart-legend"></div>
         </section>
@@ -232,7 +235,7 @@
     </main>
 
     <script src="/static/datepicker.js?v=3"></script>
-    <script src="/static/app.js?v=11"></script>
-    <script src="/static/indulgence.js?v=3"></script>
+    <script src="/static/app.js?v=12"></script>
+    <script src="/static/indulgence.js?v=4"></script>
 </body>
 </html>

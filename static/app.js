@@ -791,6 +791,34 @@ function niceNum(value, round) {
     return niceFrac * Math.pow(10, exp);
 }
 
+/**
+ * 将放纵记录映射(必要时就近吸附)到趋势图的各个体重记录点上。
+ *
+ * 放纵当天若恰有体重记录, 标记直接落在该点; 若当天没称体重(常见于放纵
+ * 次日不敢称), 则吸附到其后第一个称重日, 避免标记丢失——该点也正是
+ * "放纵后第一次称重", 便于观察体重是否抬头。其后尚无称重记录的放纵
+ * 暂不显示, 待下次称重后自动出现。
+ *
+ * Args:
+ *     records: 趋势图数据(按日期升序的体重记录)。
+ *
+ * Returns:
+ *     Array: 与 records 等长的数组, 每项为落在该点的放纵记录列表,
+ *         元素形如 { item, snapped }; snapped 为 true 表示为吸附
+ *         而非放纵当日本身有体重记录。
+ */
+function mapIndulgencesToChart(records) {
+    const buckets = records.map(() => []);
+    if (typeof lastIndulgences === "undefined") return buckets;
+    lastIndulgences.forEach((item) => {
+        // records 按日期升序, 取第一个日期 >= 放纵日的点(相等即当日)
+        const i = records.findIndex((r) => r.date >= item.date);
+        if (i === -1) return;
+        buckets[i].push({ item, snapped: records[i].date !== item.date });
+    });
+    return buckets;
+}
+
 /** 用内联 SVG 绘制体重与移动平均折线图。 */
 function renderChart(records) {
     renderLegend();
@@ -926,22 +954,23 @@ function renderChart(records) {
         .map((w, i) => line(`ma_${w}`, maColor(i), i === maxMaIndex ? 2.8 : 2))
         .join("");
 
-    // 放纵日标记: 在有体重记录的放纵日画竖向参考线(背景层)与顶部 emoji(前景层),
-    // 便于直观对齐 "喝酒/吃好吃的之后, 体重曲线是否抬头"。
-    const indulgeLines = records
-        .map((r, i) =>
-            indulgencesForDate(r.date).length > 0
+    // 放纵日标记: 画竖向参考线(背景层)与顶部 emoji(前景层), 便于直观对齐
+    // "喝酒/吃好吃的之后, 体重曲线是否抬头"。放纵当天没称体重时由
+    // mapIndulgencesToChart 就近吸附到下一个称重日, 标记不会丢失。
+    const chartIndulgences = mapIndulgencesToChart(records);
+    const indulgeLines = chartIndulgences
+        .map((entries, i) =>
+            entries.length > 0
                 ? `<line x1="${x(i)}" x2="${x(i)}" y1="${pad.top}" y2="${pad.top + innerH}"` +
                   ` stroke="#f59e0b" stroke-width="1" stroke-dasharray="3 3" opacity="0.5" />`
                 : ""
         )
         .join("");
-    const indulgeMarks = records
-        .map((r, i) => {
-            const items = indulgencesForDate(r.date);
-            if (items.length === 0) return "";
+    const indulgeMarks = chartIndulgences
+        .map((entries, i) => {
+            if (entries.length === 0) return "";
             const kinds = new Set();
-            items.forEach((it) => (it.kinds || []).forEach((k) => kinds.add(k)));
+            entries.forEach(({ item }) => (item.kinds || []).forEach((k) => kinds.add(k)));
             let emoji = "";
             if (kinds.has("alcohol")) emoji += "🍺";
             if (kinds.has("food")) emoji += "🍰";
@@ -964,14 +993,21 @@ function renderChart(records) {
         </svg>
         <div class="chart-tooltip" hidden></div>`;
 
-    attachChartInteraction(container, records, x, y, W);
+    attachChartInteraction(container, records, x, y, W, chartIndulgences);
 
     // 数据较多时自动横向滚动到最新一天(最右侧)
     container.scrollLeft = container.scrollWidth;
 }
 
-/** 构造图表悬浮提示的 HTML(日期 + 体重 + 各窗口均值)。 */
-function buildChartTip(r) {
+/**
+ * 构造图表悬浮提示的 HTML(日期 + 体重 + 各窗口均值 + 放纵详情)。
+ *
+ * Args:
+ *     r: 当前列对应的体重记录。
+ *     indulgeEntries: 落在该列的放纵记录列表({ item, snapped }),
+ *         吸附来的记录会在详情行中标注实际放纵日期。
+ */
+function buildChartTip(r, indulgeEntries) {
     const rows = [
         `<div class="tip-row"><i class="tip-dot" style="background:${WEIGHT_COLOR}"></i>` +
             `体重 <b>${r.weight.toFixed(2)}</b> kg</div>`,
@@ -984,17 +1020,19 @@ function buildChartTip(r) {
                 `${w} 日均值 <b>${valText}</b></div>`
         );
     });
-    // 当天若有放纵记录, 追加放纵详情行(触发原因 + 类型)
-    indulgencesForDate(r.date).forEach((it) => {
-        const kinds = (it.kinds || []).map((k) => KIND_LABELS[k] || k).join("、");
-        const trigger = TRIGGER_LABELS[it.trigger] || it.trigger;
-        rows.push(`<div class="tip-row tip-indulge">⚠️ 放纵 · ${trigger} · ${kinds}</div>`);
+    // 该列若有放纵记录, 追加放纵详情行(触发原因 + 类型);
+    // 吸附来的记录(放纵当天没称体重)额外标注实际放纵日期
+    (indulgeEntries || []).forEach(({ item, snapped }) => {
+        const kinds = (item.kinds || []).map((k) => KIND_LABELS[k] || k).join("、");
+        const trigger = TRIGGER_LABELS[item.trigger] || item.trigger;
+        const dateNote = snapped ? `(${item.date.slice(5)}) ` : "";
+        rows.push(`<div class="tip-row tip-indulge">⚠️ 放纵 ${dateNote}· ${trigger} · ${kinds}</div>`);
     });
     return `<div class="tip-date">${r.date}</div>${rows.join("")}`;
 }
 
 /** 绑定图表交互: 悬停/点击整列时显示参考线、高亮点与数据浮层。 */
-function attachChartInteraction(container, records, x, y, W) {
+function attachChartInteraction(container, records, x, y, W, chartIndulgences) {
     const svg = container.querySelector("svg");
     const tip = container.querySelector(".chart-tooltip");
     const guide = container.querySelector(".chart-guide");
@@ -1004,7 +1042,7 @@ function attachChartInteraction(container, records, x, y, W) {
     const showAt = (i) => {
         const r = records[i];
         if (!r) return;
-        tip.innerHTML = buildChartTip(r);
+        tip.innerHTML = buildChartTip(r, chartIndulgences[i]);
         tip.hidden = false;
 
         if (guide) {

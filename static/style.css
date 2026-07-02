@@ -527,6 +527,15 @@ body {
     margin-bottom: 16px;
 }
 
+/* 趋势图标题 + 说明文字(说明放纵标记的就近吸附规则) */
+.chart-head {
+    margin-bottom: 16px;
+}
+
+.chart-head h2 {
+    margin-bottom: 0;
+}
+
 .chart {
     position: relative;
     width: 100%;

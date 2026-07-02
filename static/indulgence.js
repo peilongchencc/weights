@@ -3,7 +3,7 @@
 // 放纵记录模块: 录入(一天一条, 同日覆盖)、坚持天数横幅、列表、内联编辑与删除。
 // 共享工具(escapeHtml / escapeAttr / todayStr / ICON_* / attachNoteTooltip)由
 // app.js 定义并先行加载, 此处直接复用; 趋势图(app.js)则反向读取本模块导出的
-// lastIndulgences / indulgencesForDate / KIND_LABELS / TRIGGER_LABELS 来标记放纵日。
+// lastIndulgences / KIND_LABELS / TRIGGER_LABELS 来标记放纵日。
 
 const INDULGENCE_API = "/api/indulgences";
 
@@ -19,11 +19,6 @@ let editingIndulgenceId = null;
 const IND_PAGE_SIZE = 5;
 // 放纵列表当前页码(1 起)
 let indCurrentPage = 1;
-
-/** 返回某天的全部放纵记录(一天一条, 故至多一条; 供趋势图标记与浮层)。 */
-function indulgencesForDate(date) {
-    return lastIndulgences.filter((r) => r.date === date);
-}
 
 /** 按日期在缓存的放纵记录中查找对应记录。 */
 function findIndulgenceByDate(date) {
